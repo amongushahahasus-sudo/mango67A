@@ -65,7 +65,8 @@ async function login(page:Page,email:string) {
 async function logout(page:Page,name:string) {
   await page.getByRole('button',{name:`${name}のアカウント`,exact:true}).click()
   await page.getByRole('menuitem',{name:'ログアウト',exact:true}).click()
-  await expect(page.getByRole('button',{name:'ログイン',exact:true})).toBeVisible()
+  // Logout flushes serialized saves; the two 2.5s fixture delays already consume the default 5s wait.
+  await expect(page.getByRole('button',{name:'ログイン',exact:true})).toBeVisible({timeout:15_000})
 }
 
 test('real SDK flow isolates Alice and Bob from guest data and from each other',async({page})=>{
