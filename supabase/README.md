@@ -2,6 +2,15 @@
 
 Googleログイン・メールアドレス＋パスワードと、利用者本人だけが読めるクラウド口座を準備します。アプリ側のコードを置くだけでは、実際の認証サービスは有効になりません。以下は所有者がSupabase / Googleの画面で行う設定です。
 
+
+## 今回接続するプロジェクト
+
+- [Supabaseの管理画面](https://supabase.com/dashboard/project/wqczekzebhukjayyhuln/explorer)
+- 接続先: `https://wqczekzebhukjayyhuln.supabase.co`
+- Google OAuthの戻り先: `https://wqczekzebhukjayyhuln.supabase.co/auth/v1/callback`
+
+接続先URLはアプリに設定済みです。公開用キーと、下記のSQL・認証プロバイダー設定が必要です。
+
 ## 1. Supabaseプロジェクトを作る
 
 [Supabase管理画面](https://supabase.com/dashboard)で「New project」を選択します。組織・プロジェクト名（例 `mango-fx`）・データベースパスワード・リージョンを設定し、作成が完了するまで待ちます。パスワードはSupabaseの画面で設定・保管し、チャットやソースコードには記載しません。
