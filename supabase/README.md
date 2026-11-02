@@ -9,7 +9,7 @@ Googleログイン・メールアドレス＋パスワードと、利用者本�
 - 接続先: `https://wqczekzebhukjayyhuln.supabase.co`
 - Google OAuthの戻り先: `https://wqczekzebhukjayyhuln.supabase.co/auth/v1/callback`
 
-接続先URLと、所有者が提供した公開用キーはアプリに設定済みです。接続確認時点では、口座テーブルの作成とGoogle認証の有効化が必要です。下記のSQL・認証プロバイダー設定を行ってください。
+接続先URLと、所有者が提供した公開用キーはアプリに設定済みです。口座テーブルと保存用関数の作成を確認し、匿名での読み書きが拒否されることも確認済みです。次はGoogle認証の有効化と、下記の戻り先URL設定を確認してください。
 
 ## 1. Supabaseプロジェクトを作る
 
