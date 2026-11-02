@@ -142,7 +142,7 @@ export default function PriceChart({
           })}
           <line x1={LEFT} x2={WIDTH - RIGHT} y1={290} y2={290} className="chart-gridline" />
           <g clipPath={`url(#${clipId})`}>
-            {visiblePositions.map((position) => <g key={position.id}><line x1={LEFT} x2={WIDTH - RIGHT} y1={y(position.entryPrice)} y2={y(position.entryPrice)} className={`chart-position-line chart-position-${position.side}`} /><rect x={LEFT + 4} y={y(position.entryPrice) - 9} width={100} height={17} rx={3} fill="#142330" /><text x={LEFT + 10} y={y(position.entryPrice) + 3} className="chart-position-label">{position.side === 'buy' ? '買' : '売'} {formatPrice(position.entryPrice)}</text></g>)}
+            {visiblePositions.map((position) => <g key={position.id}><line x1={LEFT} x2={WIDTH - RIGHT} y1={y(position.entryPrice)} y2={y(position.entryPrice)} className={`chart-position-line chart-position-${position.side}`} /><rect x={LEFT + 4} y={y(position.entryPrice) - 9} width={100} height={17} rx={3} className="chart-position-tag" /><text x={LEFT + 10} y={y(position.entryPrice) + 3} className="chart-position-label">{position.side === 'buy' ? '買' : '売'} {formatPrice(position.entryPrice)}</text></g>)}
             {visible.map((candle, index) => {
               const up = candle.close >= candle.open;
               const top = y(Math.max(candle.open, candle.close));
