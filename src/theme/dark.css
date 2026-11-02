@@ -1,0 +1,352 @@
+/* The original lime and navy palette. Only visual properties are overridden; layout stays shared with light mode.
+   Import after the shared styles. :where() keeps their control and responsive selector specificity intact. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0b1019;
+  --panel: #101722;
+  --surface-soft: #192331;
+  --surface-warm: #202b22;
+  --border: #242e3d;
+  --muted: #8390a4;
+  --text: #edf1f7;
+  --white: var(--text);
+  --lime: #d5f78b;
+  --orange: #d5f78b;
+  --orange-ink: #c7d9ac;
+  --up: #36d3b2;
+  --down: #f27886;
+  --shadow: 0 12px 40px #0007;
+}
+
+/* styles.css */
+:where(:root[data-theme="dark"]) input, :where(:root[data-theme="dark"]) select { background: #0b121c; border: 1px solid #2c3747; }
+:where(:root[data-theme="dark"]) input::placeholder { color: #59677b; }
+:where(:root[data-theme="dark"]) select { color-scheme: dark; }
+:where(:root[data-theme="dark"]) ::selection { background: #d5f78b; color: #122015; }
+:where(:root[data-theme="dark"]) ::-webkit-scrollbar-track { background: #0c121b; }
+:where(:root[data-theme="dark"]) ::-webkit-scrollbar-thumb { background: #2d394a; }
+:where(:root[data-theme="dark"]) .sidebar { background: #0d131d; border-right: 1px solid #202a37; }
+:where(:root[data-theme="dark"]) .brand-icon { color: #162516; background: var(--lime); }
+:where(:root[data-theme="dark"]) .brand-icon:hover { background: #e3ffad; box-shadow: 0 3px 22px #b8e57815; }
+:where(:root[data-theme="dark"]) .nav-button { color: #79869a; }
+:where(:root[data-theme="dark"]) .nav-button:hover { background: #1b2431; color: #d7dfeb; }
+:where(:root[data-theme="dark"]) .nav-button.active { background: #d5f78b0d; }
+:where(:root[data-theme="dark"]) .avatar { color: #cbd4df; background: #293342; border: 3px solid #1a2533; }
+:where(:root[data-theme="dark"]) .topbar { border-bottom: 1px solid #202935; background: #0c121b; }
+:where(:root[data-theme="dark"]) .wordmark span { color: var(--lime); }
+:where(:root[data-theme="dark"]) .header-divider { background: #2a3240; }
+:where(:root[data-theme="dark"]) .workspace-label { color: #8b96a7; }
+:where(:root[data-theme="dark"]) .practice-badge { border: 1px solid #2b3931; background: #b4de7e07; color: #bdd99a; }
+:where(:root[data-theme="dark"]) .help-button { color: #a0adbf; }
+:where(:root[data-theme="dark"]) .icon-button { color: #8390a5; }
+:where(:root[data-theme="dark"]) .icon-button:hover { color: #e3eaf3; background: #202c3b; }
+:where(:root[data-theme="dark"]) .eyebrow { color: #839075; }
+:where(:root[data-theme="dark"]) .page-heading h1 > span { color: var(--lime); }
+:where(:root[data-theme="dark"]) .page-heading p { color: #8995a8; }
+:where(:root[data-theme="dark"]) .simulation-label { color: #a4c18b; border-left: 1px solid #26303b; }
+:where(:root[data-theme="dark"]) .simulation-label strong { color: #bec7d4; }
+:where(:root[data-theme="dark"]) .simulation-label span { color: #758196; }
+:where(:root[data-theme="dark"]) .stat-card { background: linear-gradient(105deg, #121a27, #101722); }
+:where(:root[data-theme="dark"]) .stat-top { color: #9aa6b7; }
+:where(:root[data-theme="dark"]) .stat-top > svg { color: #66768c; }
+:where(:root[data-theme="dark"]) .stat-value small { color: #8190a6; }
+:where(:root[data-theme="dark"]) .empty-stat { color: #e0e6ef; }
+:where(:root[data-theme="dark"]) .stat-caption { color: #77859b; }
+:where(:root[data-theme="dark"]) .stat-caption strong { color: #b9c4d3; }
+:where(:root[data-theme="dark"]) .status-dot.paused { background: #e6b66e; }
+:where(:root[data-theme="dark"]) .warning-stat { border-color: #84464c; }
+:where(:root[data-theme="dark"]) .section-tag { color: #78869b; border: 1px solid #2b3441; }
+:where(:root[data-theme="dark"]) .market-note { color: #7c899c; }
+:where(:root[data-theme="dark"]) .pair-card { border: 1px solid #242d3a; background: #101722; }
+:where(:root[data-theme="dark"]) .pair-card:hover { background: #16202d; border-color: #40505b; }
+:where(:root[data-theme="dark"]) .pair-card.selected { background: linear-gradient(110deg, #18251f, #121c22); border-color: #5a7050; }
+:where(:root[data-theme="dark"]) .selected-indicator { background: var(--lime); }
+:where(:root[data-theme="dark"]) .currency-icon > span { border: 2px solid #16212d; background: #d9e5ed; }
+:where(:root[data-theme="dark"]) .since-label { color: #6e7e8e; }
+:where(:root[data-theme="dark"]) .chart-instrument { border-bottom: 1px solid #232d3a; }
+:where(:root[data-theme="dark"]) .instrument-name > span { color: #7f8ba0; background: #222c3b; }
+:where(:root[data-theme="dark"]) .instrument-subtitle { color: #758197; }
+:where(:root[data-theme="dark"]) .instrument-price { border-left: 1px solid #303949; }
+:where(:root[data-theme="dark"]) .playback-bar { border-top: 1px solid #222c3a; background: #0d141e; }
+:where(:root[data-theme="dark"]) .play-button { background: #1c2836; color: #b5c2d2; }
+:where(:root[data-theme="dark"]) .play-button:hover { background: #2e3d4e; }
+:where(:root[data-theme="dark"]) .play-button.paused { background: #d5f78b18; color: var(--lime); }
+:where(:root[data-theme="dark"]) .speed-control button { color: #718098; }
+:where(:root[data-theme="dark"]) .speed-control button.active { color: #d9e2ed; background: #273141; }
+:where(:root[data-theme="dark"]) .speed-control button:hover { color: #fff; }
+:where(:root[data-theme="dark"]) .playback-description { color: #5f6e83; border-left: 1px solid #2a3443; }
+:where(:root[data-theme="dark"]) .sim-clock { color: #8492a6; }
+:where(:root[data-theme="dark"]) .utc-note { color: #5e6b80; }
+:where(:root[data-theme="dark"]) .activity-heading { border-bottom: 1px solid #25303e; }
+:where(:root[data-theme="dark"]) .activity-tabs > button { color: #8491a6; }
+:where(:root[data-theme="dark"]) .activity-tabs > button[aria-selected=true] { color: #dbe5ec; }
+:where(:root[data-theme="dark"]) .activity-tabs > button:hover { color: #e4edf9; }
+:where(:root[data-theme="dark"]) .activity-tabs > button > span { color: #8899af; background: #263141; }
+:where(:root[data-theme="dark"]) .activity-tabs > button[aria-selected=true] > span { background: #d5f78b16; }
+:where(:root[data-theme="dark"]) .text-button { color: #a0acbe; }
+:where(:root[data-theme="dark"]) .empty-icon { border: 1px solid #2c3746; background: #192331; color: #8498af; }
+:where(:root[data-theme="dark"]) .empty-icon > span { background: #536c55; color: #d5f78b; }
+:where(:root[data-theme="dark"]) .empty-state h3 { color: #b7c2d1; }
+:where(:root[data-theme="dark"]) .empty-state p { color: #6c7a90; }
+:where(:root[data-theme="dark"]) .empty-hint { color: #43556a; }
+:where(:root[data-theme="dark"]) .activity-footer { border-top: 1px solid #222d3b; color: #77869b; }
+:where(:root[data-theme="dark"]) .activity-footer strong { color: #b8c4d5; }
+:where(:root[data-theme="dark"]) th { color: #77869c; background: #0e151f; border-bottom: 1px solid #222c3b; }
+:where(:root[data-theme="dark"]) td { border-bottom: 1px solid #202a37; color: #c5d0dd; }
+:where(:root[data-theme="dark"]) tbody tr:hover { background: #151f2c; }
+:where(:root[data-theme="dark"]) .table-pair { color: #e0e7f1; }
+:where(:root[data-theme="dark"]) .table-note { color: #67788f; }
+:where(:root[data-theme="dark"]) .side-tag.buy { background: #36d3b215; }
+:where(:root[data-theme="dark"]) .side-tag.sell { background: #f2788615; }
+:where(:root[data-theme="dark"]) .close-position { border: 1px solid #39475a; color: #b7c5d8; background: #172230; }
+:where(:root[data-theme="dark"]) .history-summary { color: #8291a8; background: #111a26; }
+:where(:root[data-theme="dark"]) .history-summary strong { color: #d7e0ec; }
+:where(:root[data-theme="dark"]) .order-pair-label { color: #a3afc1; background: #192331; border: 1px solid #293445; }
+:where(:root[data-theme="dark"]) .quote-button { border: 1px solid #3c2c39; background: #e3778610; }
+:where(:root[data-theme="dark"]) .quote-button small { opacity: .75; }
+:where(:root[data-theme="dark"]) .quote-button.buy { border-color: #29483f; background: #36d3b20c; }
+:where(:root[data-theme="dark"]) .quote-button.buy.active { border-color: #36a88d; background: #36d3b21a; }
+:where(:root[data-theme="dark"]) .quote-button.sell.active { border-color: #bd6472; background: #f2788620; }
+:where(:root[data-theme="dark"]) .quote-button:hover { filter: brightness(1.16); }
+:where(:root[data-theme="dark"]) .spread-pill { background: #17212e; border: 1px solid #364151; color: #acb7c7; }
+:where(:root[data-theme="dark"]) .spread-pill small { color: #6b7b91; }
+:where(:root[data-theme="dark"]) .order-type-tabs { border-bottom: 1px solid #2a3544; }
+:where(:root[data-theme="dark"]) .order-type-tabs button { color: #7b8a9f; }
+:where(:root[data-theme="dark"]) .order-type-tabs button:hover { color: #d5e1ef; }
+:where(:root[data-theme="dark"]) .order-type-hint { color: #66768d; }
+:where(:root[data-theme="dark"]) .field-label { color: #bec8d7; }
+:where(:root[data-theme="dark"]) .field-label > span { color: #718198; }
+:where(:root[data-theme="dark"]) .number-field { border: 1px solid #2c394b; background: #0b121c; }
+:where(:root[data-theme="dark"]) .number-field:focus-within { border-color: #7d9864; box-shadow: 0 0 0 2px #d5f78b0a; }
+:where(:root[data-theme="dark"]) .number-field > button { color: #94a3b8; }
+:where(:root[data-theme="dark"]) .number-field > button:hover { background: #243143; color: #e8eef7; }
+:where(:root[data-theme="dark"]) .number-field > span { color: #6d7c92; }
+:where(:root[data-theme="dark"]) .quantity-presets button { background: #1a2432; color: #8e9db2; }
+:where(:root[data-theme="dark"]) .quantity-presets button.active { background: #d5f78b0a; color: #c7d9ac; border-color: #455740; }
+:where(:root[data-theme="dark"]) .quantity-presets button:hover { background: #293547; }
+:where(:root[data-theme="dark"]) .quantity-presets > span { color: #74849b; }
+:where(:root[data-theme="dark"]) .target-toggle { color: #96a5ba; }
+:where(:root[data-theme="dark"]) .custom-checkbox { border: 1px solid #3c4b60; background: #111a27; }
+:where(:root[data-theme="dark"]) .target-toggle > input:checked + .custom-checkbox { border-color: #79975e; background: #d5f78b12; }
+:where(:root[data-theme="dark"]) .target-toggle > svg { color: #60728b; }
+:where(:root[data-theme="dark"]) .order-estimate { border-top: 1px solid #263140; }
+:where(:root[data-theme="dark"]) .order-estimate > div { color: #7e8ea5; }
+:where(:root[data-theme="dark"]) .order-estimate strong { color: #dbe4ef; }
+:where(:root[data-theme="dark"]) .order-estimate > div > span:last-child { color: #a4b2c6; }
+:where(:root[data-theme="dark"]) .submit-order { color: #062b23; background: #42d6b5; box-shadow: 0 3px 13px #36d3b20d; }
+:where(:root[data-theme="dark"]) .submit-order.buy:hover { background: #69e6ca; box-shadow: 0 3px 18px #36d3b225; }
+:where(:root[data-theme="dark"]) .submit-order.sell { background: #f08a98; color: #3d1420; }
+:where(:root[data-theme="dark"]) .submit-order.sell:hover { background: #ffa1ae; }
+:where(:root[data-theme="dark"]) .virtual-note { color: #5e7186; }
+:where(:root[data-theme="dark"]) .order-error, :where(:root[data-theme="dark"]) .notice-banner { background: #f2788610; border: 1px solid #f2788635; color: #f3a5af; }
+:where(:root[data-theme="dark"]) .learning-card { background: linear-gradient(110deg,#1c281d,#17211e 65%,#1a2820); border: 1px solid #354731; }
+:where(:root[data-theme="dark"]) .learning-card-top { color: #c5d7ac; }
+:where(:root[data-theme="dark"]) .learning-card-top > svg { color: #829763; }
+:where(:root[data-theme="dark"]) .learn-mini-icon { border: 1px solid #61764a; color: #d5f78b; background: #d5f78b0b; }
+:where(:root[data-theme="dark"]) .learning-card h3 { color: #dce9ca; }
+:where(:root[data-theme="dark"]) .learning-card p { color: #899d80; }
+:where(:root[data-theme="dark"]) .learning-card button { color: #d2e1bd; }
+:where(:root[data-theme="dark"]) .learning-card button:hover { color: #f0ffd2; }
+:where(:root[data-theme="dark"]) .learning-decoration { opacity: .42; }
+:where(:root[data-theme="dark"]) .learning-decoration > div { background: #76934d; }
+:where(:root[data-theme="dark"]) .learning-decoration > div::before { background: #72914a; }
+:where(:root[data-theme="dark"]) .bottom-note { color: #5e6f84; }
+:where(:root[data-theme="dark"]) .bottom-note button { color: #8a9bb0; }
+:where(:root[data-theme="dark"]) .page-footer { border-top: 1px solid #1e2935; color: #6b7b90; }
+:where(:root[data-theme="dark"]) .page-footer > span:first-child { color: #8895a6; }
+:where(:root[data-theme="dark"]) .page-footer > span:first-child > span { color: #526277; }
+:where(:root[data-theme="dark"]) .page-footer > span:last-child { color: #526277; }
+:where(:root[data-theme="dark"]) .footer-dot { background: #495a6d; }
+:where(:root[data-theme="dark"]) .learn-hero { background: linear-gradient(105deg,#1d2a20,#131e1c 75%); border: 1px solid #34462f; }
+:where(:root[data-theme="dark"]) .learn-icon { border: 1px solid #5e7545; background: #d5f78b0b; }
+:where(:root[data-theme="dark"]) .learn-hero .eyebrow { color: #9aaf83; }
+:where(:root[data-theme="dark"]) .learn-hero p { color: #91a48c; }
+:where(:root[data-theme="dark"]) .lesson-top { color: #bfd995; }
+:where(:root[data-theme="dark"]) .lesson-top > span { color: #465667; }
+:where(:root[data-theme="dark"]) .lesson-card p { color: #8999af; }
+:where(:root[data-theme="dark"]) .assumptions h3 svg { color: #a9bd8b; }
+:where(:root[data-theme="dark"]) .assumptions p { color: #8595ac; }
+:where(:root[data-theme="dark"]) .primary-button { background: var(--lime); color: #23311d; }
+:where(:root[data-theme="dark"]) .primary-button:hover { background: #e3ffa8; box-shadow: 0 3px 16px #d5f78b12; }
+:where(:root[data-theme="dark"]) .secondary-button { color: #b1bfd1; background: #1c2939; border: 1px solid #334155; }
+:where(:root[data-theme="dark"]) .secondary-button:hover { background: #2a394c; }
+:where(:root[data-theme="dark"]) .danger-button { color: #34131c; background: #f294a1; }
+:where(:root[data-theme="dark"]) .danger-button:hover { background: #ffa8b4; }
+:where(:root[data-theme="dark"]) .toast { color: #dfe9f2; background: #1a2833; border: 1px solid #405b53; box-shadow: 0 8px 40px #0007; }
+:where(:root[data-theme="dark"]) .toast > span { background: #36d3b213; }
+:where(:root[data-theme="dark"]) .toast.info { border-color: #3e536d; }
+:where(:root[data-theme="dark"]) .toast.info > span { color: #a6c0e3; background: #8eaff416; }
+:where(:root[data-theme="dark"]) .toast > button { color: #8092aa; }
+:where(:root[data-theme="dark"]) .toast > button:hover { color: #fff; background: #304152; }
+:where(:root[data-theme="dark"]) .modal-backdrop { background: #03070dc9; }
+:where(:root[data-theme="dark"]) .modal { background: #111b28; border: 1px solid #354354; box-shadow: 0 24px 100px #0008; }
+:where(:root[data-theme="dark"]) .modal-eyebrow { color: #c5dbab; }
+:where(:root[data-theme="dark"]) .modal-subtitle { color: #8293ab; }
+:where(:root[data-theme="dark"]) .step-number { background: #d5f78b0b; border: 1px solid #566747; color: #ccdfa9; }
+:where(:root[data-theme="dark"]) .guide-steps p { color: #8b9bb1; }
+:where(:root[data-theme="dark"]) .settings-label { color: #b4c0d1; }
+:where(:root[data-theme="dark"]) .settings-hint { color: #6e819a; }
+:where(:root[data-theme="dark"]) .settings-info { border-top: 1px solid #293547; border-bottom: 1px solid #293547; }
+:where(:root[data-theme="dark"]) .settings-info > div { color: #7d8ea6; }
+:where(:root[data-theme="dark"]) .settings-info strong { color: #bbc9da; }
+:where(:root[data-theme="dark"]) .reset-button { color: #e0a1a9; border: 1px solid #70424c; background: #f2788607; }
+:where(:root[data-theme="dark"]) .reset-button:hover { border-color: #c17886; background: #f2788615; }
+:where(:root[data-theme="dark"]) .reset-modal-icon { background: #f2788610; color: #f199a6; border: 1px solid #80515a; }
+@media (max-width: 700px) {
+  :where(:root[data-theme="dark"]) .sidebar { box-shadow: 15px 0 35px #0006; }
+}
+@media (max-width: 700px) {
+  :where(:root[data-theme="dark"]) .order-panel .order-estimate { border-top: 1px solid #263140; }
+}
+
+/* components/PriceChart.css */
+:where(:root[data-theme="dark"]) .chart-panel { color: #e7edf6; }
+:where(:root[data-theme="dark"]) .chart-type { color: #8e9aaf; }
+:where(:root[data-theme="dark"]) .chart-timeframes { border: 1px solid #26303f; background: #0c121c; }
+:where(:root[data-theme="dark"]) .chart-timeframe { color: #8d9aaf; }
+:where(:root[data-theme="dark"]) .chart-timeframe:hover { color: #e7edf6; background: #1b2532; }
+:where(:root[data-theme="dark"]) .chart-timeframe-active { background: #17392f; color: #5bdfbd; }
+:where(:root[data-theme="dark"]) .chart-timeframe-active:hover { background: #214a3e; color: #74eacd; }
+:where(:root[data-theme="dark"]) .chart-timeframe:focus-visible { outline: 2px solid #36d3b2; }
+:where(:root[data-theme="dark"]) .chart-symbol > span { color: #697991; }
+:where(:root[data-theme="dark"]) .chart-ohlc .chart-ohlc-label { color: #718096; }
+:where(:root[data-theme="dark"]) .chart-up { color: #36d3b2; }
+:where(:root[data-theme="dark"]) .chart-down { color: #f27886; }
+:where(:root[data-theme="dark"]) .chart-currency { color: #76859c; }
+:where(:root[data-theme="dark"]) .chart-canvas:focus-visible { outline: 1px solid #36d3b2; }
+:where(:root[data-theme="dark"]) .chart-gridline { stroke: #202936; }
+:where(:root[data-theme="dark"]) .chart-gridline-vertical { stroke: #1b2532; }
+:where(:root[data-theme="dark"]) .chart-axis-label { fill: #77859c; }
+:where(:root[data-theme="dark"]) .chart-candle-up { fill: #36d3b2; stroke: #36d3b2; }
+:where(:root[data-theme="dark"]) .chart-candle-down { fill: #f27886; stroke: #f27886; }
+:where(:root[data-theme="dark"]) .chart-range-up { fill: #36d3b2; }
+:where(:root[data-theme="dark"]) .chart-range-down { fill: #f27886; }
+:where(:root[data-theme="dark"]) .chart-range-label { fill: #607087; }
+:where(:root[data-theme="dark"]) .chart-price-up { fill: #36d3b2; }
+:where(:root[data-theme="dark"]) .chart-price-down { fill: #f27886; }
+:where(:root[data-theme="dark"]) .chart-current-label { fill: #0b1919; }
+:where(:root[data-theme="dark"]) .chart-position-line { stroke: #7da5db; }
+:where(:root[data-theme="dark"]) .chart-position-sell { stroke: #e59f70; }
+:where(:root[data-theme="dark"]) .chart-position-label { fill: #a8c8ef; }
+:where(:root[data-theme="dark"]) .chart-crosshair > line { stroke: #8091a9; }
+:where(:root[data-theme="dark"]) .chart-crosshair > circle { stroke: #0e141e; fill: #f1f5fc; }
+:where(:root[data-theme="dark"]) .chart-crosshair-tag { fill: #354154; }
+:where(:root[data-theme="dark"]) .chart-crosshair-text { fill: #f2f6fc; }
+:where(:root[data-theme="dark"]) .chart-empty-label { fill: #8695aa; }
+:where(:root[data-theme="dark"]) .chart-footer { color: #75839a; }
+:where(:root[data-theme="dark"]) .chart-legend-up { background: #36d3b2; }
+:where(:root[data-theme="dark"]) .chart-legend-down { background: #f27886; }
+
+/* components/AccountMenu.css */
+:where(:root[data-theme="dark"]) .account-trigger, :where(:root[data-theme="dark"]) .account-coming-soon { border: 1px solid #374537; color: #d5f78b; background: #d5f78b08; }
+:where(:root[data-theme="dark"]) .account-trigger:hover { background: #d5f78b16; border-color: #6c7f55; }
+:where(:root[data-theme="dark"]) .account-trigger-signed-in { color: #d8e4d0; }
+:where(:root[data-theme="dark"]) .account-initial { background: #d5f78b; color: #182417; }
+:where(:root[data-theme="dark"]) .account-coming-soon { color: #899385; border-color: #2e3833; }
+:where(:root[data-theme="dark"]) .account-dropdown { border: 1px solid #354235; background: #121b26; box-shadow: 0 14px 50px #0007; }
+:where(:root[data-theme="dark"]) .account-dropdown-person { border-bottom: 1px solid #293443; }
+:where(:root[data-theme="dark"]) .account-dropdown-person strong { color: #e1eadc; }
+:where(:root[data-theme="dark"]) .account-dropdown-person > span { color: #8e9cb0; }
+:where(:root[data-theme="dark"]) .account-sync-label { color: #a9c490; }
+:where(:root[data-theme="dark"]) .account-dropdown > button { color: #b8c4d3; }
+:where(:root[data-theme="dark"]) .account-dropdown > button:hover { background: #223041; color: #e5edf7; }
+:where(:root[data-theme="dark"]) .account-dropdown .account-logout-item { border-top: 1px solid #293443; color: #d5b3b1; }
+:where(:root[data-theme="dark"]) .account-backdrop { background: #030810c7; }
+:where(:root[data-theme="dark"]) .account-dialog { background: #111a26; color: #edf1f7; border: 1px solid #354333; box-shadow: 0 25px 100px #0008; }
+:where(:root[data-theme="dark"]) .account-dialog-close { color: #92a0b4; }
+:where(:root[data-theme="dark"]) .account-dialog-close:hover { color: #edf1f7; background: #253140; }
+:where(:root[data-theme="dark"]) .account-dialog-mark { background: #d5f78b; color: #172615; }
+:where(:root[data-theme="dark"]) .account-eyebrow { color: #a2b988; }
+:where(:root[data-theme="dark"]) .account-dialog-description { color: #95a4b9; }
+:where(:root[data-theme="dark"]) .account-google-button { color: #e4e9f0; border: 1px solid #425064; background: #1b2635; }
+:where(:root[data-theme="dark"]) .account-google-button:hover { border-color: #6d7e91; background: #263448; }
+:where(:root[data-theme="dark"]) .account-divider { color: #62728a; }
+:where(:root[data-theme="dark"]) .account-divider span { background: #2a3545; }
+:where(:root[data-theme="dark"]) .account-mode-tabs { border: 1px solid #293545; background: #0c141f; }
+:where(:root[data-theme="dark"]) .account-mode-tabs button { color: #8999b0; }
+:where(:root[data-theme="dark"]) .account-mode-tabs button.active { color: #d5f78b; background: #d5f78b12; }
+:where(:root[data-theme="dark"]) .account-form > label { color: #c4cfdd; }
+:where(:root[data-theme="dark"]) .account-form > label > span { color: #64778d; }
+:where(:root[data-theme="dark"]) .account-form input { background: #0b131f; border-color: #303e51; color: #e3eaf5; }
+:where(:root[data-theme="dark"]) .account-password-field button { color: #7f92aa; }
+:where(:root[data-theme="dark"]) .account-password-field button:hover { color: #dce7f5; background: #1d2a3b; }
+:where(:root[data-theme="dark"]) .account-primary { background: #d5f78b; color: #172615; }
+:where(:root[data-theme="dark"]) .account-primary:hover { background: #e2ffac; }
+:where(:root[data-theme="dark"]) .account-text-link { color: #9badc4; }
+:where(:root[data-theme="dark"]) .account-text-link:hover { color: #d5f78b; }
+:where(:root[data-theme="dark"]) .account-error { color: #f0b2b7; border: 1px solid #74424c; background: #f278860c; }
+:where(:root[data-theme="dark"]) .account-privacy-note { color: #718399; }
+:where(:root[data-theme="dark"]) .account-privacy-note svg { color: #9caf8e; }
+:where(:root[data-theme="dark"]) .account-guest-link { color: #91a28c; }
+:where(:root[data-theme="dark"]) .account-guest-link:hover { color: #d5f78b; }
+:where(:root[data-theme="dark"]) .account-email-destination { color: #d7e7c5; border: 1px solid #394834; background: #d5f78b08; }
+:where(:root[data-theme="dark"]) .account-email-help { color: #8494ab; }
+:where(:root[data-theme="dark"]) .account-secondary { border: 1px solid #3b485a; background: #1b2737; color: #becbdc; }
+:where(:root[data-theme="dark"]) .account-email-readiness { color: #9eb38e; border: 1px solid #34422f; background: #d5f78b06; }
+
+/* components/InstallApp.css */
+:where(:root[data-theme="dark"]) .install-trigger { border: 1px solid #334032; background: #d5f78b06; color: #becda8; }
+:where(:root[data-theme="dark"]) .install-trigger:hover { background: #d5f78b12; border-color: #60764d; color: #e0f6c0; }
+:where(:root[data-theme="dark"]) .install-trigger-ready { background: #d5f78b; border-color: #d5f78b; color: #192918; }
+:where(:root[data-theme="dark"]) .install-trigger-ready:hover { background: #e2ffad; border-color: #e2ffad; color: #192918; }
+:where(:root[data-theme="dark"]) .install-trigger:focus-visible, :where(:root[data-theme="dark"]) .install-dialog button:focus-visible { outline: 2px solid #d5f78b; }
+:where(:root[data-theme="dark"]) .install-backdrop { background: #030811ba; }
+:where(:root[data-theme="dark"]) .install-dialog { background: #111a26; border: 1px solid #344136; color: #edf1f7; box-shadow: 0 25px 90px #0007; }
+:where(:root[data-theme="dark"]) .install-close { color: #92a0b4; }
+:where(:root[data-theme="dark"]) .install-close:hover { color: #edf1f7; background: #253140; }
+:where(:root[data-theme="dark"]) .install-app-mark { background: #d5f78b; color: #172716; }
+:where(:root[data-theme="dark"]) .install-eyebrow { color: #a5bc83; }
+:where(:root[data-theme="dark"]) .install-intro { color: #9ba9bc; }
+:where(:root[data-theme="dark"]) .install-platform-icon { border: 1px solid #344333; background: #d5f78b09; color: #c6dda9; }
+:where(:root[data-theme="dark"]) .install-instructions p { color: #95a3b8; }
+:where(:root[data-theme="dark"]) .install-instructions strong { color: #cbd6e3; }
+:where(:root[data-theme="dark"]) .install-menu-note { color: #7f8da1; }
+:where(:root[data-theme="dark"]) .install-benefits { border-top: 1px solid #293646; border-bottom: 1px solid #293646; }
+:where(:root[data-theme="dark"]) .install-benefits span { color: #b9d39d; }
+:where(:root[data-theme="dark"]) .install-context-note { background: #d5f78b08; border: 1px solid #384a33; }
+:where(:root[data-theme="dark"]) .install-context-note > svg { color: #c5dda7; }
+:where(:root[data-theme="dark"]) .install-context-note p { color: #c1cdb9; }
+:where(:root[data-theme="dark"]) .install-prompt-note { color: #e1bf83; border: 1px solid #5f4c2c; background: #e1bf8308; }
+:where(:root[data-theme="dark"]) .install-storage-note { color: #7f8fa4; }
+:where(:root[data-theme="dark"]) .install-storage-note svg { color: #9aab90; }
+:where(:root[data-theme="dark"]) .install-primary { background: #d5f78b; color: #182616; }
+:where(:root[data-theme="dark"]) .install-primary:hover { background: #e1ffa7; }
+:where(:root[data-theme="dark"]) .install-dismiss { border: 1px solid #394655; color: #c5d1e0; background: #1a2533; }
+:where(:root[data-theme="dark"]) .install-dismiss:hover { background: #253343; color: #edf1f7; }
+
+/* components/PwaStatus.css */
+:where(:root[data-theme="dark"]) .pwa-status { color: #8ba493; }
+:where(:root[data-theme="dark"]) .pwa-status-offline { color: #e6b66e; }
+:where(:root[data-theme="dark"]) .pwa-update { background: #15231f; border: 1px solid #476447; box-shadow: 0 12px 50px #0007; }
+:where(:root[data-theme="dark"]) .pwa-update-icon { color: #d5f78b; }
+:where(:root[data-theme="dark"]) .pwa-update strong { color: #e4eddf; }
+:where(:root[data-theme="dark"]) .pwa-update p { color: #a2b0a6; }
+:where(:root[data-theme="dark"]) .pwa-update-actions button { color: #a6b6a8; }
+:where(:root[data-theme="dark"]) .pwa-update-actions .pwa-update-primary { color: #152016; background: #d5f78b; }
+:where(:root[data-theme="dark"]) .pwa-update-close { color: #93a298; }
+
+/* auth/AccountWorkspace.css */
+:where(:root[data-theme="dark"]) .workspace-loading { background: #0b1019; color: #edf1f7; }
+:where(:root[data-theme="dark"]) .workspace-loading>header { border-bottom: 1px solid #263140; }
+:where(:root[data-theme="dark"]) .workspace-loading>header>a>span { color: #d5f78b; }
+:where(:root[data-theme="dark"]) .workspace-loading>section { border: 1px solid #293747; background: #111a26; }
+:where(:root[data-theme="dark"]) .workspace-loading-mark { background: #d5f78b10; color: #d5f78b; }
+:where(:root[data-theme="dark"]) .workspace-loading p { color: #9baabc; }
+:where(:root[data-theme="dark"]) .workspace-start-choice button, :where(:root[data-theme="dark"]) .workspace-retry { background: #d5f78b; color: #182616; }
+:where(:root[data-theme="dark"]) .workspace-start-choice .workspace-secondary { border: 1px solid #3a4859; background: #1b2735; color: #c9d6e5; }
+:where(:root[data-theme="dark"]) .workspace-sync-note { border: 1px solid #725d38; background: #d6ad6610; color: #e4bd7b; }
+:where(:root[data-theme="dark"]) .workspace-sync-note p { color: #aa9f8b; }
+:where(:root[data-theme="dark"]) .workspace-sync-note>button { border: 1px solid #6b5a39; }
+:where(:root[data-theme="dark"]) .workspace-sync-conflict { border-color: #647f4c; background: #d5f78b0a; color: #d5e8b8; }
+:where(:root[data-theme="dark"]) .workspace-choice-inline button { background: #1f2c23; border: 1px solid #576b44; color: #d5f2b4; }
+:where(:root[data-theme="dark"]) .workspace-choice-inline button+button { background: #1a2534; border-color: #394c61; color: #c0d1e5; }
+:where(:root[data-theme="dark"]) .workspace-choice-inline span { color: #8a98ab; }
+
+/* States and visual details introduced with the light palette. */
+:where(:root[data-theme="dark"]) .brand-icon { box-shadow: none; }
+:where(:root[data-theme="dark"]) .stat-card, :where(:root[data-theme="dark"]) .panel { box-shadow: none; }
+:where(:root[data-theme="dark"]) .chart-position-tag { fill: #142330; stroke: none; }
+:where(:root[data-theme="dark"]) .pwa-update-actions button:hover { background: #24352c; color: #e4eddf; }
+:where(:root[data-theme="dark"]) .pwa-update-actions .pwa-update-primary:hover { background: #e2ffac; color: #152016; }
+:where(:root[data-theme="dark"]) .workspace-start-choice button:hover, :where(:root[data-theme="dark"]) .workspace-retry:hover { background: #e2ffac; }
+:where(:root[data-theme="dark"]) .workspace-start-choice .workspace-secondary:hover { background: #253448; }
