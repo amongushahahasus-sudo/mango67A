@@ -1,0 +1,12 @@
+.pwa-status { display: inline-flex; gap: 6px; align-items: center; color: #8ba493; font-size: 10px; white-space: nowrap; }
+.pwa-status-offline { color: #e6b66e; }
+.pwa-update { position: fixed; z-index: 75; right: 24px; bottom: 24px; display: flex; align-items: flex-start; gap: 13px; width: 370px; max-width: calc(100vw - 32px); padding: 21px 18px; background: #15231f; border: 1px solid #476447; box-shadow: 0 12px 50px #0007; border-radius: 12px; }
+.pwa-update-icon { color: #d5f78b; margin-top: 2px; }
+.pwa-update strong { color: #e4eddf; font-size: 13px; }
+.pwa-update p { color: #a2b0a6; font-size: 11px; line-height: 1.8; margin-top: 5px; }
+.pwa-update-actions { display: flex; align-items: center; gap: 15px; margin-top: 14px; }
+.pwa-update-actions button { font-size: 11px; min-height: 34px; color: #a6b6a8; padding: 7px 12px; border-radius: 5px; }
+.pwa-update-actions .pwa-update-primary { color: #152016; background: #d5f78b; font-weight: 650; }
+.pwa-update-close { color: #93a298; padding: 2px; margin-left: auto; }
+@media(max-width: 1100px) { .pwa-status span { display: none; } }
+@media(max-width: 500px) { .pwa-status { display: none; } .pwa-update { right: 16px; bottom: 16px; } }

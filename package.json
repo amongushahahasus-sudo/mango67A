@@ -1,0 +1,30 @@
+{
+  "name": "mango-fx-studio",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "build:standalone": "npm run build && node scripts/build-standalone.mjs",
+    "test:standalone": "npm run build:standalone && node scripts/test-standalone.mjs",
+    "test:pwa": "npm run build && playwright test --config playwright.pwa.config.ts",
+    "package:download": "npm run build:standalone && python3 scripts/package-downloads.py"
+  },
+  "dependencies": {
+    "lucide-react": "0.468.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "typescript": "5.9.3",
+    "vite": "7.3.7",
+    "vitest": "4.1.12"
+  }
+}
