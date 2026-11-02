@@ -57,3 +57,5 @@
 @media(max-width: 1200px) { .account-trigger > span:not(.account-initial), .account-coming-soon > span { display: none; } .account-trigger { padding: 7px; } .account-trigger-signed-in { padding: 4px 6px 4px 4px; } }
 @media(max-width: 600px) { .account-backdrop { padding: 14px; } .account-dialog { padding: 25px 20px; max-height: calc(100dvh - 28px); border-radius: 12px; } .account-dialog h2 { font-size: 22px; } .account-trigger { min-height: 30px; } }
 @media(prefers-reduced-motion:reduce) { .account-spinner { animation: none; } }
+
+.account-email-readiness { color: #9eb38e; font-size: 10px; line-height: 1.85; padding: 10px 12px; border: 1px solid #34422f; border-radius: 6px; background: #d5f78b06; margin: -4px 0 17px; }

@@ -1,3 +1,4 @@
+import { ACCOUNT_CONFIG } from '../src/config/accountConfig'
 import { test as base, expect, chromium } from '@playwright/test'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -87,4 +88,21 @@ test('update waits for consent and preserves account after activation', async ({
   await expect(page.getByRole('button',{name:'更新する',exact:true})).not.toBeVisible({timeout:15000})
   await expect(page.getByRole('button',{name:'USD / JPYの買い建玉を決済',exact:true})).toBeVisible()
   await expect.poll(()=> page.evaluate(async()=> (await caches.keys()).filter(name=>name.startsWith('mango-fx-shell:/:')).length)).toBe(1)
+})
+
+
+test('account dialog exposes only email registration that is ready for users', async ({page})=>{
+  await ready(page)
+  await page.getByRole('button',{name:'ログイン',exact:true}).click()
+  const dialog=page.getByRole('dialog')
+  await expect(dialog.getByRole('button',{name:'Googleでログイン',exact:true})).toBeVisible()
+  const signup=dialog.getByRole('button',{name:'新規登録',exact:true})
+  if (ACCOUNT_CONFIG.emailRegistrationReady) {
+    await expect(signup).toBeEnabled()
+    await expect(dialog.getByRole('button',{name:'パスワードを忘れた方',exact:true})).toBeVisible()
+  } else {
+    await expect(signup).toBeDisabled()
+    await expect(dialog.getByText('メールでの新規登録とパスワード再設定は準備中です。Googleでログインできます。',{exact:true})).toBeVisible()
+    await expect(dialog.getByRole('button',{name:'パスワードを忘れた方',exact:true})).not.toBeVisible()
+  }
 })

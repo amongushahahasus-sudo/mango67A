@@ -9,7 +9,9 @@ Googleログイン・メールアドレス＋パスワードと、利用者本�
 - 接続先: `https://wqczekzebhukjayyhuln.supabase.co`
 - Google OAuthの戻り先: `https://wqczekzebhukjayyhuln.supabase.co/auth/v1/callback`
 
-接続先URLと、所有者が提供した公開用キーはアプリに設定済みです。口座テーブルと保存用関数の作成を確認し、匿名での読み書きが拒否されることも確認済みです。次はGoogle認証の有効化と、下記の戻り先URL設定を確認してください。
+接続先URLと公開用キーはアプリに設定済みです。口座テーブルと保存用関数の作成、匿名での読み書きの拒否を確認しました。Google Providerの有効化と、Googleの認可画面へ正しいSupabaseコールバックを指定して移動するところまで確認済みです。所有者が公開アプリでGoogleログインを完了し、自分の口座を保存・再読込する確認はまだ必要です。
+
+**メール送信は準備中です。** Custom SMTPは未設定で、`ACCOUNT_CONFIG.emailRegistrationReady` は現在 `false` です。Googleログインと登録済みメールアドレスでのログインを用意し、メールでの新規登録・パスワード再設定はSMTPの準備ができるまで停止します。既存利用者の実ログインやメールの到着を、設定APIの成功だけで確認済みとは扱いません。
 
 ## 1. Supabaseプロジェクトを作る
 
@@ -41,6 +43,34 @@ https://amongushahahasus-sudo.github.io/mango67A/
 「Authentication → URL Configuration」のRedirect URLsにも同じURLを追加します。開発用に必要な場合だけ `http://localhost:5173/` と `http://127.0.0.1:5173/` を追加してください。不要なワイルドカードは使用しません。
 
 確認メール・パスワード再設定メールの送信はSupabaseの送信サービス設定に依存します。標準メールサービスには宛先制限やレート制限があるため、一般の利用者へ提供する前に、自分の管理するSMTPサービスを設定して実メールで配送を検証してください。登録APIの成功だけではメール到着を確認できません。
+
+### GmailでCustom SMTPを設定する例
+
+自分で管理している個人用Gmailを送信元に使う例です。Googleログイン用のOAuth設定とは別に、Supabaseが確認メールを送るための設定を行います。
+
+1. 送信元にするGoogleアカウントで、[2段階認証](https://myaccount.google.com/signinoptions/two-step-verification)を有効にします。
+2. 同じアカウントの[アプリパスワード画面](https://myaccount.google.com/apppasswords)を開き、名前を `MANGO FX SMTP` などにして作成します。表示された16文字のアプリパスワードは、次のSupabase画面にだけ入力します。普段のGoogleログイン用パスワードは使いません。
+3. [このプロジェクトのSMTP設定](https://supabase.com/dashboard/project/wqczekzebhukjayyhuln/auth/smtp)を開き、Custom SMTPを有効にします。メニューから開く場合はAuthentication内のEmail / SMTP設定を探してください。画面名は変更される場合があります。
+4. 次の値を入力して保存します。
+
+| Supabaseの項目 | 入力する値 |
+| --- | --- |
+| SMTP Host | `smtp.gmail.com` |
+| Port | `465`（SSL/TLS） |
+| Username | 送信元のGmailアドレス全体 |
+| Password | 手順2で作成した16文字のアプリパスワード |
+| Sender email | Usernameと同じGmailアドレス |
+| Sender name | `MANGO FX` |
+
+アプリパスワードをチャット、GitHub、アプリの接続設定へ記載する必要はありません。SupabaseのSMTP Password欄だけで扱ってください。メール確認を無効にして送信エラーを回避する必要もありません。
+
+5. 保存できたら、パスワードを添えずに「SMTP設定完了」と知らせてください。送信設定を確認した後、アプリのメール新規登録・再設定を有効化します。
+6. 有効化後、ご自身で公開アプリからメール登録を行い、確認メールの到着とリンクからのログインを確認します。続いてパスワード再設定メールと、変更後のログインも試してください。ここまで完了して初めて実配送・実ログインを確認済みとします。
+
+アプリパスワードの項目が出ない場合、職場・学校の管理アカウントやGoogle側の保護設定などで利用できないことがあります。その場合はGoogleの通常パスワードを代用せず、SMTPに対応するメール配信サービス（Resend、Brevoなど）を利用してください。サービスの画面で発行されたHost・Port・Username・Passwordと、承認された送信元アドレスをSupabaseに設定します。個人Gmailにも送信数制限があるため、利用人数が増える場合はメール配信サービスへの移行を検討できます。
+
+公式資料: [Googleのアプリパスワード](https://support.google.com/accounts/answer/185833?hl=ja) / [GmailのSMTP仕様](https://developers.google.com/workspace/gmail/imap/imap-smtp) / [SupabaseのCustom SMTP](https://supabase.com/docs/guides/auth/auth-smtp)
+
 
 ## 4. Googleログインを設定する
 

@@ -58,6 +58,12 @@ export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest,
     if (auth.recovery) openMode('recovery')
   }, [auth.recovery])
   useEffect(() => {
+    if (!auth.emailRegistrationReady) {
+      setMode(current => ['signup', 'reset', 'confirm', 'reset-sent'].includes(current || '') ? 'signin' : current)
+      setPassword(''); setConfirmPassword('')
+    }
+  }, [auth.emailRegistrationReady])
+  useEffect(() => {
     if (auth.authError) { setError(auth.authError); setMode('signin'); auth.clearAuthError() }
   }, [auth.authError, auth.clearAuthError])
   useEffect(() => {
@@ -145,7 +151,7 @@ export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest,
       <div className="account-dropdown-person"><strong>{name}</strong><span>{auth.user.email || 'Googleアカウント'}</span></div>
       <div className="account-sync-label"><Cloud size={14} />{syncLabel || '個人の練習口座'}</div>
       {canImportGuest && onImportGuest && <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onImportGuest() }}><Upload size={15} />この端末のゲスト練習を取り込む</button>}
-      <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setEmail(auth.user?.email || ''); openMode('reset') }}><KeyRound size={15} />パスワードを再設定</button>
+      {auth.emailRegistrationReady && <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setEmail(auth.user?.email || ''); openMode('reset') }}><KeyRound size={15} />パスワードを再設定</button>}
       <button type="button" role="menuitem" className="account-logout-item" disabled={busy} onClick={() => { void signOut() }}><LogOut size={15} />ログアウト</button>
     </div>}
     {mode && createPortal(<div className="account-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) closeModal() }}><div className="account-dialog" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
@@ -154,7 +160,7 @@ export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest,
       <span className="account-eyebrow">MANGO FX · YOUR OWN JOURNEY</span>
       <h2 id={titleId}>{title}</h2>
       <p className="account-dialog-description">{mode === 'signin' ? 'ログインして、前回の続きから始めましょう。' : mode === 'signup' ? '取引の経験を、自分のアカウントに残せます。' : mode === 'reset' ? '登録したメールアドレスに、再設定用リンクを送ります。' : mode === 'recovery' ? '他のサービスと異なるパスワードを設定しましょう。' : mode === 'confirm' ? '確認メール内のリンクを開くと、メールアドレスの確認が完了します。' : mode === 'reset-sent' ? '登録されているメールアドレスの場合、再設定用メールが届きます。メール内のリンクから設定してください。' : '未同期の練習データは、この端末に残ります。別の端末からは、最後に同期した時点のデータを利用できます。'}</p>
-      {(mode === 'signin' || mode === 'signup') && <><button type="button" className="account-google-button" onClick={() => { void google() }} disabled={busy}><GoogleMark />Googleで{mode === 'signup' ? '登録 / ログイン' : 'ログイン'}</button><div className="account-divider"><span />またはメールアドレスで<span /></div><div className="account-mode-tabs"><button type="button" className={mode === 'signin' ? 'active' : ''} onClick={() => openMode('signin')} disabled={busy}>ログイン</button><button type="button" className={mode === 'signup' ? 'active' : ''} onClick={() => openMode('signup')} disabled={busy}>新規登録</button></div></>}
+      {(mode === 'signin' || mode === 'signup') && <><button type="button" className="account-google-button" onClick={() => { void google() }} disabled={busy}><GoogleMark />Googleで{mode === 'signup' ? '登録 / ログイン' : 'ログイン'}</button><div className="account-divider"><span />またはメールアドレスで<span /></div><div className="account-mode-tabs"><button type="button" className={mode === 'signin' ? 'active' : ''} onClick={() => openMode('signin')} disabled={busy}>ログイン</button><button type="button" className={mode === 'signup' ? 'active' : ''} onClick={() => openMode('signup')} disabled={busy || !auth.emailRegistrationReady} title={auth.emailRegistrationReady ? undefined : 'メールでの新規登録は準備中です'}>新規登録</button></div>{!auth.emailRegistrationReady && <p className="account-email-readiness" role="note">メールでの新規登録とパスワード再設定は準備中です。Googleでログインできます。</p>}</>}
       {isForm && <form className="account-form" onSubmit={event => { void submit(event) }} noValidate>
         {mode === 'signup' && <label htmlFor={nameId}>表示名 <span>任意</span><input id={nameId} type="text" autoComplete="nickname" maxLength={40} placeholder="例：マンゴー" value={displayName} onChange={event => setDisplayName(event.target.value)} disabled={busy} /></label>}
         {mode !== 'recovery' && <label htmlFor={emailId}>メールアドレス<input id={emailId} type="email" inputMode="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={event => { setEmail(event.target.value); setError('') }} disabled={busy} required /></label>}
@@ -162,7 +168,7 @@ export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest,
         {(mode === 'signup' || mode === 'recovery') && <label htmlFor={confirmId}>パスワード（確認）<input id={confirmId} type={showPassword ? 'text' : 'password'} autoComplete="new-password" value={confirmPassword} onChange={event => { setConfirmPassword(event.target.value); setError('') }} disabled={busy} required /></label>}
         {error && <div className="account-error" role="alert">{error}</div>}
         <button type="submit" className="account-primary" disabled={busy}>{busy ? <><LoaderCircle size={16} className="account-spinner" />処理しています…</> : <>{mode === 'signin' ? 'ログインする' : mode === 'signup' ? 'アカウントを作成' : mode === 'reset' ? '再設定メールを送る' : 'パスワードを変更'}<ArrowRight size={16} /></>}</button>
-        {mode === 'signin' && <button type="button" className="account-text-link" onClick={() => openMode('reset')} disabled={busy}>パスワードを忘れた方</button>}
+        {mode === 'signin' && auth.emailRegistrationReady && <button type="button" className="account-text-link" onClick={() => openMode('reset')} disabled={busy}>パスワードを忘れた方</button>}
         {mode === 'reset' && <button type="button" className="account-text-link" onClick={() => openMode('signin')} disabled={busy}>ログインに戻る</button>}
       </form>}
       {!isForm && error && <div className="account-error" role="alert">{error}</div>}

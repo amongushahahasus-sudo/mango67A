@@ -2,11 +2,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase, authConfigured, authRedirectUrl } from '../lib/supabase'
+import { ACCOUNT_CONFIG } from '../config/accountConfig'
 
 export interface AuthContextValue {
   user: User | null
   loading: boolean
   configured: boolean
+  emailRegistrationReady: boolean
   recovery: boolean
   authError: string | null
   clearAuthError: () => void
@@ -19,6 +21,8 @@ export interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
+const emailRegistrationReady = import.meta.env.VITE_EMAIL_REGISTRATION_READY === 'true' || ACCOUNT_CONFIG.emailRegistrationReady === true
+const emailPreparationMessage = 'メールでの新規登録とパスワード再設定は準備中です。Googleでログインできます。'
 
 /** Keep provider details and account-existence information out of user-facing errors. */
 export function authErrorMessage(error: unknown, action: 'signin' | 'signup' | 'reset' | 'google' | 'signout' | 'password' | 'session' = 'session'): string {
@@ -109,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthError(null)
   }, [])
   const signUp = useCallback(async (email: string, password: string, displayName: string) => {
+    if (!emailRegistrationReady) throw new Error(emailPreparationMessage)
     const { data, error } = await client().auth.signUp({
       email: email.trim(), password,
       options: { emailRedirectTo: authRedirectUrl(), data: { display_name: displayName.trim().slice(0, 40) } },
@@ -135,6 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthError(null)
   }, [])
   const sendPasswordReset = useCallback(async (email: string) => {
+    if (!emailRegistrationReady) throw new Error(emailPreparationMessage)
     const { error } = await client().auth.resetPasswordForEmail(email.trim(), { redirectTo: authRedirectUrl() })
     if (error) throw new Error(authErrorMessage(error, 'reset'))
   }, [])
@@ -143,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw new Error(authErrorMessage(error, 'password'))
     setRecovery(false)
   }, [])
-  const value = useMemo<AuthContextValue>(() => ({ user, loading, configured: authConfigured, recovery, authError, clearAuthError, signIn, signUp, signInWithGoogle, signOut, sendPasswordReset, updatePassword }), [user, loading, recovery, authError, clearAuthError, signIn, signUp, signInWithGoogle, signOut, sendPasswordReset, updatePassword])
+  const value = useMemo<AuthContextValue>(() => ({ user, loading, configured: authConfigured, emailRegistrationReady, recovery, authError, clearAuthError, signIn, signUp, signInWithGoogle, signOut, sendPasswordReset, updatePassword }), [user, loading, recovery, authError, clearAuthError, signIn, signUp, signInWithGoogle, signOut, sendPasswordReset, updatePassword])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
