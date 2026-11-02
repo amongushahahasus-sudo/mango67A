@@ -12,14 +12,17 @@
     "build:standalone": "npm run build && node scripts/build-standalone.mjs",
     "test:standalone": "npm run build:standalone && node scripts/test-standalone.mjs",
     "test:pwa": "npm run build && playwright test --config playwright.pwa.config.ts",
-    "package:download": "npm run build:standalone && python3 scripts/package-downloads.py"
+    "package:download": "npm run build:standalone && python3 scripts/package-downloads.py",
+    "test:accounts": "playwright test --config playwright.accounts.config.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.118.0",
     "lucide-react": "0.468.0",
     "react": "19.2.0",
     "react-dom": "19.2.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.14",
     "@playwright/test": "1.56.1",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",

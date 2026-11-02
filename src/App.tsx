@@ -1,15 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowDownLeft, ArrowRight, ArrowUpRight, BarChart3, BookOpen, Check, ChevronRight, CircleHelp, Clock3, Download, Expand, Gauge, History, Info, LayoutDashboard, Menu, Pause, Play, Plus, RotateCcw, Settings2, ShieldCheck, Sparkles, TrendingUp, Wallet, X } from 'lucide-react'
 import PriceChart from './components/PriceChart'
 import InstallApp from './components/InstallApp'
 import PwaStatus from './components/PwaStatus'
-import { PAIRS, createAccount, generateInitialCandles, nextCandle, getQuote, accountMetrics, marginRequired, unrealizedPnl, openMarketPosition, closePosition, placeOrder, cancelOrder, processMarket } from './lib/engine'
-import type { Account, Candle, CurrencyPair, Prices, Scenario, Side } from './lib/engine'
+import { createSavedState, loadSavedState, GUEST_STORAGE_KEY } from './lib/practiceState'
+import type { SavedState, Timeframe } from './lib/practiceState'
+import { PAIRS, nextCandle, getQuote, accountMetrics, marginRequired, unrealizedPnl, openMarketPosition, closePosition, placeOrder, cancelOrder, processMarket } from './lib/engine'
+import type { Candle, CurrencyPair, Prices, Scenario, Side } from './lib/engine'
 
-type Timeframe = '1m' | '5m' | '15m' | '1h'
 type Modal = 'guide' | 'settings' | 'reset' | null
-type SavedState = { version: 1; account: Account; markets: Record<CurrencyPair, Candle[]>; baseline: Prices; pair: CurrencyPair; scenario: Scenario; timeframe: Timeframe; speed: number; paused: boolean; marketEvent?: { id: number; text: string } }
-const STORAGE_KEY = 'mango-fx-simulator-v1'
 const pairs = Object.keys(PAIRS) as CurrencyPair[]
 const yen = (value: number, signed = false) => `${signed && value > 0 ? '+' : value < 0 ? '−' : ''}¥${Math.abs(Math.round(value)).toLocaleString('ja-JP')}`
 const rate = (value: number, pair: CurrencyPair) => value.toFixed(PAIRS[pair].decimals)
@@ -17,23 +16,6 @@ const time = (timestamp: number) => new Date(timestamp).toLocaleTimeString('ja-J
 const datetime = (timestamp: number) => new Date(timestamp).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Tokyo' })
 const pricesOf = (markets: SavedState['markets']): Prices => Object.fromEntries(pairs.map(pair => [pair, markets[pair].at(-1)!.close])) as Prices
 const scenarios: Record<Scenario, string> = { balanced: 'レンジ相場', bullish: '上昇トレンド', bearish: '下降トレンド', volatile: '高ボラティリティ' }
-function freshState(): SavedState {
-  const markets = Object.fromEntries(pairs.map((pair, i) => [pair, generateInitialCandles(pair, 1440, 42 + i * 99)])) as SavedState['markets']
-  return { version: 1, account: createAccount(), markets, baseline: pricesOf(markets), pair: 'USDJPY', scenario: 'balanced', timeframe: '1m', speed: 1, paused: false }
-}
-function loadState(): SavedState {
-  try {
-    const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') as SavedState | null
-    if (!s || s.version !== 1 || !pairs.includes(s.pair) || !Object.keys(scenarios).includes(s.scenario) || !['1m','5m','15m','1h'].includes(s.timeframe) || ![1,2,5].includes(s.speed) || typeof s.paused !== 'boolean') return freshState()
-    if (!s.account || !Number.isFinite(s.account.balance) || !['positions','orders','history'].every(key => Array.isArray(s.account[key as 'positions']))) return freshState()
-    if (!pairs.every(pair => Number.isFinite(s.baseline?.[pair]) && s.baseline[pair] > 0 && Array.isArray(s.markets?.[pair]) && s.markets[pair].length > 0 && s.markets[pair].every(c => [c.time,c.open,c.high,c.low,c.close].every(Number.isFinite) && Math.min(c.open,c.high,c.low,c.close)>0))) return freshState()
-    if (![...s.account.positions, ...s.account.orders, ...s.account.history].every(p => pairs.includes(p.pair) && ['buy','sell'].includes(p.side) && Number.isFinite(p.units) && p.units > 0 && typeof p.id === 'string')) return freshState()
-    const validTimestamp = (value: number) => Number.isFinite(value) && Math.abs(value) <= 8.64e15
-    const validTargets = (item: { takeProfit?: number; stopLoss?: number }) => [item.takeProfit,item.stopLoss].every(value => value === undefined || (Number.isFinite(value) && value > 0))
-    if (!s.account.positions.every(p => Number.isFinite(p.entryPrice) && p.entryPrice>0 && validTimestamp(p.openedAt) && validTargets(p)) || !s.account.orders.every(o => ['limit','stop'].includes(o.type) && Number.isFinite(o.price) && o.price>0 && validTimestamp(o.createdAt) && validTargets(o)) || !s.account.history.every(t => Number.isFinite(t.pnl) && Number.isFinite(t.entryPrice) && t.entryPrice>0 && Number.isFinite(t.exitPrice) && t.exitPrice>0 && validTimestamp(t.openedAt) && validTimestamp(t.closedAt) && typeof t.reason==='string')) return freshState()
-    return s
-  } catch { return freshState() }
-}
 function aggregate(candles: Candle[], timeframe: Timeframe): Candle[] {
   const minutes = { '1m': 1, '5m': 5, '15m': 15, '1h': 60 }[timeframe]
   if (minutes === 1) return candles
@@ -62,8 +44,17 @@ const guideSteps = [
   { icon: ShieldCheck, title: '出口を決めて、結果を振り返る', text: '利確・損切りを設定すると、到達時に自動で決済します。証拠金維持率が50%以下になると全建玉をロスカット。指値・逆指値は指定価格に達した時のレートで約定し、価格が飛ぶと指定値と差が出ます。' },
 ]
 
-export default function App() {
-  const [state, setState] = useState<SavedState>(loadState)
+export interface AppProps {
+  initialState?: SavedState
+  storageKey?: string
+  onStateChange?: (state: SavedState) => void
+  accountControl?: ReactNode
+  accountStatus?: string
+  accountNotice?: ReactNode
+  userLabel?: string
+}
+export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onStateChange, accountControl, accountStatus, accountNotice, userLabel }: AppProps = {}) {
+  const [state, setState] = useState<SavedState>(() => initialState ?? loadSavedState(storageKey))
   const [view, setView] = useState<'trade' | 'learn'>('trade')
   const [modal, setModal] = useState<Modal>(null)
   const [side, setSide] = useState<Side>('buy')
@@ -88,9 +79,10 @@ export default function App() {
   const notify = (text: string, type: 'success' | 'info' = 'success') => setToast({ text, type })
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); setSaveFailed(false) }
+    try { localStorage.setItem(storageKey, JSON.stringify(state)); setSaveFailed(false) }
     catch { setSaveFailed(true) }
-  }, [state])
+    onStateChange?.(state)
+  }, [state, storageKey, onStateChange])
   useEffect(() => { if (!toast) return; const id = window.setTimeout(() => setToast(null), 5500); return () => clearTimeout(id) }, [toast])
   useEffect(() => {
     if (state.paused) return
@@ -197,16 +189,17 @@ export default function App() {
         <button className="nav-button" title="取引履歴" aria-label="取引履歴へ移動" onClick={jumpHistory}><History size={21} /><span>取引履歴</span></button>
         <button className={`nav-button ${view === 'learn' ? 'active' : ''}`} title="学習ガイド" aria-label="学習ガイド" onClick={() => { setView('learn'); setMobileNav(false) }}><BookOpen size={21} /><span>学ぶ</span></button>
       </div>
-      <div className="nav-bottom"><button className="nav-button" title="シミュレーター設定" aria-label="シミュレーター設定" onClick={() => setModal('settings')}><Settings2 size={20} /><span>設定</span></button><div className="avatar" title="ローカル練習用アカウント">M</div></div>
+      <div className="nav-bottom"><button className="nav-button" title="シミュレーター設定" aria-label="シミュレーター設定" onClick={() => setModal('settings')}><Settings2 size={20} /><span>設定</span></button><div className="avatar" title={userLabel || "ゲスト練習用アカウント"}>{userLabel?.slice(0,1).toUpperCase() || "M"}</div></div>
     </aside>
 
     <div className="workspace">
       <header className="topbar">
         <div className="topbar-left"><button className="icon-button mobile-menu" aria-label="メニューを開く" onClick={() => setMobileNav(!mobileNav)}><Menu size={20} /></button><a className="wordmark" href="#" onClick={e => { e.preventDefault(); setView('trade') }}>MANGO<span>FX</span></a><span className="header-divider" /><span className="workspace-label">トレーディング・スタジオ</span></div>
-        <div className="topbar-right"><PwaStatus /><InstallApp /><span className="practice-badge"><span />DEMO ACCOUNT</span><button className="help-button" onClick={() => setModal('guide')}><CircleHelp size={16} /><span>使い方</span></button></div>
+        <div className="topbar-right"><PwaStatus /><InstallApp />{accountControl}<span className="practice-badge"><span />DEMO ACCOUNT</span><button className="help-button" onClick={() => setModal('guide')}><CircleHelp size={16} /><span>使い方</span></button></div>
       </header>
       <main>
         <section className="page-heading"><div><div className="eyebrow"><span className="tiny-dot" /> YOUR NEXT CHAPTER STARTS HERE</div><h1>{view === 'trade' ? <>リスクの前に、<span>経験を。</span></> : <>FXを知る。<span>自信に変える。</span></>}</h1><p>{view === 'trade' ? '仮想資金100万円で、相場と向き合う練習を。' : 'はじめの一歩から、取引を振り返るところまで。'}</p></div><div className="simulation-label"><ShieldCheck size={17} /><div><strong>練習だけに、集中できる。</strong><span>登録不要 · 実際の資金は使いません</span></div></div></section>
+        {accountNotice}
         {saveFailed && <div className="notice-banner" role="alert"><Info size={17} />このブラウザでは進捗を保存できません。ページを閉じると現在の取引が失われます。</div>}
         {view === 'learn' ? <section className="learn-page"><div className="learn-hero"><div className="learn-icon"><BookOpen size={32} /></div><div><span className="eyebrow">THE BASICS</span><h2>しくみがわかると、取引が変わる。</h2><p>4つのポイントを押さえて、小さな数量から試してみましょう。</p></div></div><div className="lesson-grid">{guideSteps.map((step, index) => <article className="lesson-card" key={step.title}><div className="lesson-top"><step.icon size={25} /><span>0{index+1}</span></div><h3>{step.title}</h3><p>{step.text}</p></article>)}</div><div className="panel assumptions"><h3><Info size={18} />このシミュレーターの取引ルール</h3><p>価格はモデルが生成する練習用データで、実際の為替レートではありません。初期資金100万円、レバレッジ25倍、1 lot＝1万通貨。スプレッドは固定で、取引手数料・スワップ・税金は計算に含みません。EUR/USDの損益はUSD/JPYで円換算します。</p><p>相場は2秒で1分進みます（通常速度）。停止中でも注文・決済できます。指値・逆指値、利確・損切りは各更新時の売買可能なBid/Askで判定し、その時のレートで約定します。待機注文の証拠金は約定時に確認し、不足する注文はキャンセルされます。実際の市場の流動性や通信遅延は再現しません。</p><button className="primary-button" onClick={() => setView('trade')}>トレードを始める<ArrowRight size={17} /></button></div></section> : <>
           <section className="account-grid" aria-label="口座状況">
@@ -236,7 +229,7 @@ export default function App() {
                   {tab === 'orders' && (state.account.orders.length ? <div className="table-scroll"><table><thead><tr><th>通貨ペア / 売買</th><th>注文種別</th><th>数量</th><th>注文価格</th><th>操作</th></tr></thead><tbody>{state.account.orders.map(order => <tr key={order.id}><td><div className="table-pair">{PAIRS[order.pair].label}<span className={`side-tag ${order.side}`}>{order.side==='buy'?'買':'売'}</span></div></td><td>{order.type==='limit'?'指値':'逆指値'}</td><td>{order.units/10000} lot</td><td>{rate(order.price,order.pair)}</td><td><button className="close-position" onClick={() => { setState(s => ({ ...s, account: cancelOrder(s.account,order.id) })); notify('注文を取り消しました。','info') }}>取消</button></td></tr>)}</tbody></table></div> : <EmptyState icon="order" title="待機中の注文はありません" text="指値・逆指値注文なら、狙った価格で取引を始められます。" />)}
                   {tab === 'history' && (state.account.history.length ? <><div className="history-summary"><span>確定損益 <strong className={realizedPnl>=0?'text-up':'text-down'}>{yen(realizedPnl,true)}</strong></span><span>勝率 <strong>{(wins/state.account.history.length*100).toFixed(0)}%</strong></span><span>{state.account.history.length}取引</span></div><div className="table-scroll"><table><thead><tr><th>通貨ペア / 売買</th><th>約定 → 決済</th><th>確定損益</th><th>日時 / 理由</th></tr></thead><tbody>{[...state.account.history].sort((a,b)=>b.closedAt-a.closedAt).map(trade => <tr key={trade.id}><td><div className="table-pair">{PAIRS[trade.pair].label}<span className={`side-tag ${trade.side}`}>{trade.side==='buy'?'買':'売'}</span></div><div className="table-note">{trade.units/10000} lot</div></td><td>{rate(trade.entryPrice,trade.pair)} <span className="muted">→</span> {rate(trade.exitPrice,trade.pair)}</td><td className={trade.pnl>=0?'text-up':'text-down'}>{yen(trade.pnl,true)}</td><td>{datetime(trade.closedAt)}<div className="table-note">{trade.reason}</div></td></tr>)}</tbody></table></div></> : <EmptyState icon="history" title="経験は、ここに積み重なります" text="建玉を決済すると、損益と取引の記録を振り返れます。" />)}
                 </div>
-                <div className="activity-footer"><span><span className="status-dot" />{saveFailed ? '保存できません' : 'このブラウザに自動保存'}</span><span>口座残高 <strong>{yen(state.account.balance)}</strong></span></div>
+                <div className="activity-footer"><span><span className="status-dot" />{saveFailed ? '保存できません' : accountStatus || 'このブラウザに自動保存'}</span><span>口座残高 <strong>{yen(state.account.balance)}</strong></span></div>
               </section>
             </div>
 
@@ -268,7 +261,7 @@ export default function App() {
     </div>
     {toast&&<div className={`toast ${toast.type}`} role="status"><span>{toast.type==='success'?<Check size={17}/>:<Info size={17}/>}</span>{toast.text}<button aria-label="通知を閉じる" onClick={()=>setToast(null)}><X size={15}/></button></div>}
     {modal&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setModal(null)}}><div className={`modal ${modal==='guide'?'guide-modal':''}`} ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="modal-title" tabIndex={-1}><button className="modal-close icon-button" aria-label="閉じる" onClick={()=>setModal(null)}><X size={20}/></button>
-      {modal==='guide'?<><span className="modal-eyebrow"><BookOpen size={17}/> MANGO FX GUIDE</span><h2 id="modal-title">最初のトレードを、ここから。</h2><p className="modal-subtitle">4つのポイントでわかる、FXの基本。</p><div className="guide-steps">{guideSteps.map((step,i)=><article key={step.title}><span className="step-number">0{i+1}</span><div><h3>{step.title}</h3><p>{step.text}</p></div></article>)}</div><button className="primary-button full-width" onClick={()=>{setModal(null);setView('trade')}}>わかった、試してみる<ArrowRight size={17}/></button></>:modal==='settings'?<><span className="modal-eyebrow"><Settings2 size={17}/> SIMULATION SETTINGS</span><h2 id="modal-title">自分に合う練習環境に。</h2><p className="modal-subtitle">相場のシナリオは、いつでも変更できます。</p><label className="settings-label">相場シナリオ<select value={state.scenario} onChange={e=>setState(s=>({...s,scenario:e.target.value as Scenario}))}>{Object.entries(scenarios).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label><p className="settings-hint">{state.scenario==='balanced'?'方向感の少ない相場で、値動きの幅を観察します。':state.scenario==='bullish'?'緩やかな上昇傾向。短期的には下がることもあります。':state.scenario==='bearish'?'緩やかな下降傾向。短期的には上がることもあります。':'変動が大きい相場。数量や損切りの大切さを体験します。'}</p><div className="settings-info"><div><span>口座通貨</span><strong>日本円（JPY）</strong></div><div><span>レバレッジ</span><strong>25倍（固定）</strong></div><div><span>ロスカット水準</span><strong>証拠金維持率 50%</strong></div><div><span>保存先</span><strong>この端末のブラウザ</strong></div></div><button className="reset-button" onClick={()=>setModal('reset')}><RotateCcw size={16}/>練習をリセットする</button><p className="settings-hint">履歴・建玉・注文を消去して、仮想資金100万円から再開します。</p><button className="primary-button full-width" onClick={()=>setModal(null)}>設定を閉じる<Check size={16}/></button></>:<><span className="reset-modal-icon"><RotateCcw size={26}/></span><h2 id="modal-title">もう一度、はじめから。</h2><p className="modal-subtitle">すべての建玉・注文・取引履歴を消去します。仮想資金は100万円に戻ります。この操作は取り消せません。</p><div className="reset-modal-actions"><button className="secondary-button" onClick={()=>setModal('settings')}>キャンセル</button><button className="danger-button" onClick={()=>{setState(freshState());setSide('buy');setOrderType('market');setLots('1');setWithTargets(false);setTakeProfit('');setStopLoss('');setTab('positions');setError('');setModal(null);notify('練習をリセットしました。新しい一歩を始めましょう。','info')}}>リセットする</button></div></>}
+      {modal==='guide'?<><span className="modal-eyebrow"><BookOpen size={17}/> MANGO FX GUIDE</span><h2 id="modal-title">最初のトレードを、ここから。</h2><p className="modal-subtitle">4つのポイントでわかる、FXの基本。</p><div className="guide-steps">{guideSteps.map((step,i)=><article key={step.title}><span className="step-number">0{i+1}</span><div><h3>{step.title}</h3><p>{step.text}</p></div></article>)}</div><button className="primary-button full-width" onClick={()=>{setModal(null);setView('trade')}}>わかった、試してみる<ArrowRight size={17}/></button></>:modal==='settings'?<><span className="modal-eyebrow"><Settings2 size={17}/> SIMULATION SETTINGS</span><h2 id="modal-title">自分に合う練習環境に。</h2><p className="modal-subtitle">相場のシナリオは、いつでも変更できます。</p><label className="settings-label">相場シナリオ<select value={state.scenario} onChange={e=>setState(s=>({...s,scenario:e.target.value as Scenario}))}>{Object.entries(scenarios).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label><p className="settings-hint">{state.scenario==='balanced'?'方向感の少ない相場で、値動きの幅を観察します。':state.scenario==='bullish'?'緩やかな上昇傾向。短期的には下がることもあります。':state.scenario==='bearish'?'緩やかな下降傾向。短期的には上がることもあります。':'変動が大きい相場。数量や損切りの大切さを体験します。'}</p><div className="settings-info"><div><span>口座通貨</span><strong>日本円（JPY）</strong></div><div><span>レバレッジ</span><strong>25倍（固定）</strong></div><div><span>ロスカット水準</span><strong>証拠金維持率 50%</strong></div><div><span>保存先</span><strong>この端末のブラウザ</strong></div></div><button className="reset-button" onClick={()=>setModal('reset')}><RotateCcw size={16}/>練習をリセットする</button><p className="settings-hint">履歴・建玉・注文を消去して、仮想資金100万円から再開します。</p><button className="primary-button full-width" onClick={()=>setModal(null)}>設定を閉じる<Check size={16}/></button></>:<><span className="reset-modal-icon"><RotateCcw size={26}/></span><h2 id="modal-title">もう一度、はじめから。</h2><p className="modal-subtitle">すべての建玉・注文・取引履歴を消去します。仮想資金は100万円に戻ります。この操作は取り消せません。</p><div className="reset-modal-actions"><button className="secondary-button" onClick={()=>setModal('settings')}>キャンセル</button><button className="danger-button" onClick={()=>{setState(createSavedState());setSide('buy');setOrderType('market');setLots('1');setWithTargets(false);setTakeProfit('');setStopLoss('');setTab('positions');setError('');setModal(null);notify('練習をリセットしました。新しい一歩を始めましょう。','info')}}>リセットする</button></div></>}
     </div></div>}
   </div>
 }

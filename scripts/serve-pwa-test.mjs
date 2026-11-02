@@ -3,7 +3,7 @@ import { createServer } from 'node:http'
 import { readFile, stat } from 'node:fs/promises'
 import { dirname, extname, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '../dist')
+const root = process.env.MANGO_PWA_TEST_ROOT ? resolve(process.env.MANGO_PWA_TEST_ROOT) : resolve(dirname(fileURLToPath(import.meta.url)), '../dist')
 const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.json':'application/json', '.webmanifest':'application/manifest+json', '.png':'image/png', '.svg':'image/svg+xml' }
 let revision = 0
 createServer(async (request,response) => {
