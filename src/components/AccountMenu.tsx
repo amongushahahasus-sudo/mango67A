@@ -42,7 +42,7 @@ export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest,
   const name = typeof rawName === 'string' && rawName.trim() ? rawName.trim().slice(0, 40) : auth.user?.email?.split('@')[0] || 'マイアカウント'
   const initial = Array.from(name)[0]?.toUpperCase() || 'M'
 
-  const closeModal = () => { setMode(null); setPassword(''); setConfirmPassword(''); setShowPassword(false); setError('') }
+  const closeModal = () => { auth.clearAuthError(); setMode(null); setPassword(''); setConfirmPassword(''); setShowPassword(false); setError('') }
   const openMode = (next: Mode) => { setMenuOpen(false); setMode(next); setPassword(''); setConfirmPassword(''); setShowPassword(false); setError('') }
   useEffect(() => {
     const nextId = auth.user?.id || null
@@ -50,8 +50,8 @@ export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest,
       lastUserId.current = nextId
       setMenuOpen(false)
       setPassword(''); setConfirmPassword(''); setShowPassword(false)
-      setEmail(''); setDisplayName(''); setError('')
-      setMode(current => current === 'recovery' && nextId ? current : null)
+      setEmail(''); setDisplayName(''); setError(auth.authError || '')
+      setMode(current => auth.authError ? 'signin' : current === 'recovery' && nextId ? current : null)
     }
   }, [auth.user?.id])
   useEffect(() => {
@@ -64,8 +64,10 @@ export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest,
     }
   }, [auth.emailRegistrationReady])
   useEffect(() => {
-    if (auth.authError) { setError(auth.authError); setMode('signin'); auth.clearAuthError() }
-  }, [auth.authError, auth.clearAuthError])
+    // Rendering a notice is not acknowledgement: this component can remount
+    // when the personal workspace finishes loading its cloud account.
+    if (auth.authError) { setError(auth.authError); setMode('signin') }
+  }, [auth.authError])
   useEffect(() => {
     if (!menuOpen) return
     const outside = (event: PointerEvent) => { if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false) }
@@ -81,7 +83,7 @@ export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest,
     document.body.style.overflow = 'hidden'
     dialogRef.current?.focus()
     const keyboard = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { event.preventDefault(); setMode(null); setPassword(''); setConfirmPassword(''); setShowPassword(false); setError(''); return }
+      if (event.key === 'Escape') { event.preventDefault(); closeModal(); return }
       if (event.key !== 'Tab') return
       const nodes = dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), a[href], [tabindex="0"]')
       if (!nodes?.length) { event.preventDefault(); return }

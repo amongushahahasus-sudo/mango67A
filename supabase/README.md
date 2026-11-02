@@ -5,7 +5,7 @@ Googleログイン・メールアドレス＋パスワードと、利用者本�
 
 ## 今回接続するプロジェクト
 
-所有者からGmailのCustom SMTP設定完了の申告を受け、メール新規登録・再設定を有効にする設定に更新しました。実配送は、公開アプリから所有者が登録・再設定を試して確認します。公開APIではSMTPの認証情報を検証していません。
+所有者がメール登録と確認メールの着信を確認しました（迷惑メールフォルダに分類されていました）。パスワード再設定メールと別端末での個人口座復元は、別途実操作で確認します。公開APIではSMTPの認証情報を検証していません。
 
 - [Supabaseの管理画面](https://supabase.com/dashboard/project/wqczekzebhukjayyhuln/explorer)
 - 接続先: `https://wqczekzebhukjayyhuln.supabase.co`
@@ -13,7 +13,7 @@ Googleログイン・メールアドレス＋パスワードと、利用者本�
 
 接続先URLと公開用キーはアプリに設定済みです。口座テーブルと保存用関数の作成、匿名での読み書きの拒否を確認しました。Google Providerの有効化と、Googleの認可画面へ正しいSupabaseコールバックを指定して移動するところまで確認済みです。所有者が公開アプリでGoogleログインを完了し、自分の口座を保存・再読込する確認はまだ必要です。
 
-`ACCOUNT_CONFIG.emailRegistrationReady` は現在 `true` です。メールの実到着と確認リンク・再設定リンクからのログインは、所有者の操作で確認します。
+`ACCOUNT_CONFIG.emailRegistrationReady` は現在 `true` です。メール登録・確認メールの着信は所有者が確認済みです。再設定リンクからのログインは別途確認します。
 
 ## 1. Supabaseプロジェクトを作る
 
@@ -89,6 +89,21 @@ https://amongushahahasus-sudo.github.io/mango67A/
 6. SupabaseのRedirect URLsにアプリの公開URLが含まれていることを再確認します。
 
 GoogleからはまずSupabaseのコールバックへ戻り、その後アプリへ戻ります。両者のURLを取り違えないでください。PKCEのため、最初に認証を開始したブラウザで戻り先を開きます。
+
+### Googleログインがinvalid_clientになる場合
+
+Authログに `The provided client secret is invalid` が記録されている場合、GoogleがClient IDとClient Secretの組を受け付けていません。アプリのメール登録やSMTP用パスワードとは別の設定です。
+
+1. Supabaseが使っているClient IDと、Google Auth Platformで開いたWebクライアントのIDが一致することを確認します。
+2. そのクライアントの「Add Secret／シークレットを追加」で新しいSecretを発行します。
+3. 作成直後に表示されたSecret全文を、SupabaseのGoogle ProviderのClient Secret欄へ上書きし、保存します。Client IDは同じものを使います。
+4. 公開アプリからGoogleログインを最初から開始します。以前のcallback URLの再読み込みは使いません。
+
+Googleの現在の仕様では、作成後の画面はSecretの末尾4文字を識別用に表示します。その表示は認証用の完全な値として使用できません。SecretやダウンロードJSONはチャット・アプリソースへ記載しません。
+
+新しいSecretを追加できない場合は、既存のクライアントを残し、同じプロジェクトにMANGO FX専用の新しいWebクライアントを作成します。上記の生成元・Supabase callback URLを設定し、作成直後の新しいIDとSecretを対でSupabaseへ設定します。
+
+根拠: [Google公式のSecret追加・表示仕様](https://support.google.com/cloud/answer/15549257#rotating-secrets)
 
 ## 5. 実サービスで確認する
 

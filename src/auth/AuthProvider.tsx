@@ -23,10 +23,12 @@ export interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 const emailRegistrationReady = import.meta.env.VITE_EMAIL_REGISTRATION_READY === 'true' || ACCOUNT_CONFIG.emailRegistrationReady === true
 const emailPreparationMessage = 'メールでの新規登録とパスワード再設定は準備中です。Googleでログインできます。'
+export const OAUTH_RETRY_MESSAGE = 'ログインの有効期限が切れたか、開始時の情報を確認できません。同じブラウザでアプリを開き、ログインを最初からやり直してください。'
+export const GOOGLE_LINK_CONFIGURATION_MESSAGE = 'Googleログインを完了できませんでした。連携設定の確認が必要です。メールアドレスでログインすることもできます。'
 
 /** Keep provider details and account-existence information out of user-facing errors. */
 export function authErrorMessage(error: unknown, action: 'signin' | 'signup' | 'reset' | 'google' | 'signout' | 'password' | 'session' = 'session'): string {
-  const value = error && typeof error === 'object' ? error as { code?: unknown; status?: unknown; name?: unknown; message?: unknown } : null
+  const value = error && typeof error === 'object' ? error as { code?: unknown; status?: unknown; name?: unknown; message?: unknown; details?: unknown } : null
   const code = typeof value?.code === 'string' ? value.code : ''
   const message = typeof value?.message === 'string' ? value.message.toLowerCase() : ''
   if (value?.status === 429 || code.includes('rate_limit') || /too many|rate limit/.test(message)) return '試行回数が多くなっています。少し時間をおいて、もう一度お試しください。'
@@ -35,6 +37,14 @@ export function authErrorMessage(error: unknown, action: 'signin' | 'signup' | '
   if ((action === 'signup' || action === 'reset') && emailDeliveryFailure) return action === 'signup'
     ? '確認メールを送信できませんでした。Googleでログインするか、時間をおいてお試しください。'
     : '再設定用メールを送信できませんでした。Googleでログインするか、時間をおいてお試しください。'
+  const oauthContext = action === 'google' || action === 'session'
+  const details = value?.details && typeof value.details === 'object' ? value.details as { code?: unknown; error?: unknown } : null
+  // URL callback errors are wrapped by auth-js; their stable codes live in details.
+  const callbackCodes = [code, details?.code, details?.error].filter((item): item is string => typeof item === 'string').map(item => item.toLowerCase())
+  const retryCodes = ['pkce_code_verifier_not_found', 'bad_code_verifier', 'flow_state_not_found', 'flow_state_expired', 'bad_oauth_state']
+  if (oauthContext && (callbackCodes.some(item => retryCodes.includes(item)) || value?.name === 'AuthPKCECodeVerifierMissingError' || /pkce code verifier not found/.test(message))) return OAUTH_RETRY_MESSAGE
+  if (oauthContext && (callbackCodes.includes('invalid_client') || /unable to exchange external code|\binvalid_client\b/.test(message))) return GOOGLE_LINK_CONFIGURATION_MESSAGE
+  if (oauthContext && callbackCodes.includes('access_denied')) return 'Googleログインが許可されませんでした。アカウント選択からやり直すか、メールアドレスでログインしてください。'
   if (value?.name === 'AuthRetryableFetchError' || value?.name === 'TypeError' || /fetch|network|offline|failed to send/.test(message)) return action === 'signout' ? '通信できないため、ログアウトを完了できませんでした。接続を確認して、もう一度お試しください。' : '通信できませんでした。インターネット接続を確認して、もう一度お試しください。'
   if (code === 'email_not_confirmed' || /email not confirmed/.test(message)) return '確認メール内のリンクを開いて、メールアドレスの確認を完了してください。'
   if (code === 'weak_password' || /weak password|password.*least|password.*short/.test(message)) return 'より安全なパスワードを設定してください。8文字以上で、英字・数字などを組み合わせてください。'
@@ -49,6 +59,32 @@ export function authErrorMessage(error: unknown, action: 'signin' | 'signup' | '
   return 'ログイン状態を確認できませんでした。もう一度ログインしてください。'
 }
 
+/** Remove only consumed/failed auth parameters, preserving all application state. */
+export function cleanAuthCallbackUrl(href: string, failedCode = false): string {
+  const url = new URL(href)
+  const errorKeys = ['error', 'error_code', 'error_description']
+  for (const key of errorKeys) if (url.searchParams.has(key)) url.searchParams.delete(key)
+  if (failedCode) {
+    url.searchParams.delete('code')
+    url.searchParams.delete('sb_flow_id')
+  }
+  const fragment = new URLSearchParams(url.hash.slice(1))
+  if (errorKeys.some(key => fragment.has(key)) || (failedCode && (fragment.has('code') || fragment.has('sb_flow_id')))) {
+    for (const key of errorKeys) fragment.delete(key)
+    if (failedCode) { fragment.delete('code'); fragment.delete('sb_flow_id') }
+    url.hash = fragment.toString()
+  }
+  return url.href
+}
+
+function replaceAuthCallbackUrl(failedCode = false) {
+  const clean = cleanAuthCallbackUrl(window.location.href, failedCode)
+  if (clean !== window.location.href) {
+    // A browser history restriction must not hide the actual authentication error.
+    try { window.history.replaceState(window.history.state, '', clean) } catch { /* Keep the error UI usable. */ }
+  }
+}
+
 function client() {
   if (!supabase) throw new Error('個人アカウントの準備が完了していません。ゲストとして練習できます。')
   return supabase
@@ -61,19 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null)
   const clearAuthError = useCallback(() => {
     setAuthError(null)
-    // OAuth callback errors should not reappear when this page is reloaded.
-    const url = new URL(window.location.href)
-    let changed = false
-    for (const key of ['error','error_code','error_description']) {
-      if (url.searchParams.has(key)) { url.searchParams.delete(key); changed = true }
-    }
-    const fragment = new URLSearchParams(url.hash.slice(1))
-    if (fragment.has('error')) {
-      for (const key of ['error','error_code','error_description']) fragment.delete(key)
-      url.hash = fragment.toString()
-      changed = true
-    }
-    if (changed) window.history.replaceState(window.history.state, '', url.href)
+    replaceAuthCallbackUrl()
   }, [])
 
   useEffect(() => {
@@ -87,8 +111,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user || null)
       setLoading(false)
       if (event === 'PASSWORD_RECOVERY') setRecovery(true)
-      if (event === 'SIGNED_OUT') { setRecovery(false); setAuthError(null) }
-      if (event === 'SIGNED_IN') setAuthError(null)
+      if (event === 'SIGNED_OUT') setRecovery(false)
+      // Background session recovery can emit SIGNED_IN. Only an explicit
+      // dismissal or a successful user auth action acknowledges a pending error.
     })
     const target = supabase
     void (async () => {
@@ -101,8 +126,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(error ? null : data.session?.user || null)
         setLoading(false)
       }
-      const initialError = initialized.error || error
-      if (initialError && !authenticatedEvent) setAuthError(authErrorMessage(initialError))
+      // A successful SDK callback consumes its code. If it is still present,
+      // auth-js may have ignored it because no matching PKCE flow was found.
+      // Keep any existing valid session; this is an error in this login attempt.
+      const callbackUrl = new URL(window.location.href)
+      const unconsumedCode = callbackUrl.searchParams.has('code') || new URLSearchParams(callbackUrl.hash.slice(1)).has('code')
+      const initialError = initialized.error || (unconsumedCode ? { code: 'pkce_code_verifier_not_found' } : null) || error
+      if (initialized.error || unconsumedCode) replaceAuthCallbackUrl(true)
+      if (initialError && (!authenticatedEvent || unconsumedCode)) setAuthError(authErrorMessage(initialError))
     })().catch(error => {
       if (!disposed) {
         if (!receivedEvent) { setUser(null); setLoading(false) }
