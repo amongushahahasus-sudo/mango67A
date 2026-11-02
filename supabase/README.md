@@ -5,13 +5,15 @@ Googleログイン・メールアドレス＋パスワードと、利用者本�
 
 ## 今回接続するプロジェクト
 
+所有者からGmailのCustom SMTP設定完了の申告を受け、メール新規登録・再設定を有効にする設定に更新しました。実配送は、公開アプリから所有者が登録・再設定を試して確認します。公開APIではSMTPの認証情報を検証していません。
+
 - [Supabaseの管理画面](https://supabase.com/dashboard/project/wqczekzebhukjayyhuln/explorer)
 - 接続先: `https://wqczekzebhukjayyhuln.supabase.co`
 - Google OAuthの戻り先: `https://wqczekzebhukjayyhuln.supabase.co/auth/v1/callback`
 
 接続先URLと公開用キーはアプリに設定済みです。口座テーブルと保存用関数の作成、匿名での読み書きの拒否を確認しました。Google Providerの有効化と、Googleの認可画面へ正しいSupabaseコールバックを指定して移動するところまで確認済みです。所有者が公開アプリでGoogleログインを完了し、自分の口座を保存・再読込する確認はまだ必要です。
 
-**メール送信は準備中です。** Custom SMTPは未設定で、`ACCOUNT_CONFIG.emailRegistrationReady` は現在 `false` です。Googleログインと登録済みメールアドレスでのログインを用意し、メールでの新規登録・パスワード再設定はSMTPの準備ができるまで停止します。既存利用者の実ログインやメールの到着を、設定APIの成功だけで確認済みとは扱いません。
+`ACCOUNT_CONFIG.emailRegistrationReady` は現在 `true` です。メールの実到着と確認リンク・再設定リンクからのログインは、所有者の操作で確認します。
 
 ## 1. Supabaseプロジェクトを作る
 
