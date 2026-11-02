@@ -6,23 +6,23 @@
   min-height: 32px;
   padding: 7px 10px;
   border-radius: 6px;
-  border: 1px solid #334032;
-  background: #d5f78b06;
-  color: #becda8;
+  border: 1px solid #c4d7bc;
+  background: var(--surface-soft);
+  color: var(--lime);
   font-size: 10px;
   white-space: nowrap;
 }
-.install-trigger:hover { background: #d5f78b12; border-color: #60764d; color: #e0f6c0; }
-.install-trigger-ready { background: #d5f78b; border-color: #d5f78b; color: #192918; font-weight: 650; }
-.install-trigger-ready:hover { background: #e2ffad; border-color: #e2ffad; color: #192918; }
+.install-trigger:hover { background: #e5efdd; border-color: #89a878; color: var(--lime); }
+.install-trigger-ready { background: var(--lime); border-color: var(--lime); color: #fffefb; font-weight: 650; }
+.install-trigger-ready:hover { background: #2d653f; border-color: #2d653f; color: #fffefb; }
 .install-trigger:disabled { opacity: .6; cursor: progress; }
-.install-trigger:focus-visible, .install-dialog button:focus-visible { outline: 2px solid #d5f78b; outline-offset: 4px; }
+.install-trigger:focus-visible, .install-dialog button:focus-visible { outline: 2px solid var(--lime); outline-offset: 4px; }
 .install-backdrop {
   position: fixed;
   inset: 0;
   z-index: 110;
   padding: 24px;
-  background: #030811ba;
+  background: #273e3266;
   backdrop-filter: blur(7px);
   display: flex;
   align-items: center;
@@ -34,39 +34,39 @@
   max-height: calc(100dvh - 48px);
   overflow-y: auto;
   padding: 31px;
-  background: #111a26;
-  border: 1px solid #344136;
+  background: var(--panel);
+  border: 1px solid var(--border);
   border-radius: 16px;
-  color: #edf1f7;
-  box-shadow: 0 25px 90px #0007;
+  color: var(--white);
+  box-shadow: 0 25px 90px #2f492426;
   outline: none;
 }
-.install-close { position: absolute; top: 16px; right: 16px; display: grid; place-items: center; width: 31px; height: 31px; color: #92a0b4; border-radius: 6px; }
-.install-close:hover { color: #edf1f7; background: #253140; }
-.install-app-mark { width: 49px; height: 49px; background: #d5f78b; color: #172716; border-radius: 13px; display: grid; place-items: center; margin-bottom: 18px; }
+.install-close { position: absolute; top: 16px; right: 16px; display: grid; place-items: center; width: 31px; height: 31px; color: var(--muted); border-radius: 6px; }
+.install-close:hover { color: var(--white); background: var(--surface-soft); }
+.install-app-mark { width: 49px; height: 49px; background: linear-gradient(135deg, #e7f0d9, #ffe2ae); color: var(--lime); border-radius: 13px; display: grid; place-items: center; margin-bottom: 18px; }
 .install-app-mark svg { width: 32px; height: 32px; }
-.install-eyebrow { display: block; color: #a5bc83; font-size: 9px; font-weight: 600; letter-spacing: .13em; margin-bottom: 9px; }
+.install-eyebrow { display: block; color: var(--lime); font-size: 9px; font-weight: 600; letter-spacing: .13em; margin-bottom: 9px; }
 .install-dialog h2 { font-size: 24px; line-height: 1.5; letter-spacing: .015em; font-weight: 650; padding-right: 12px; }
-.install-intro { color: #9ba9bc; font-size: 12px; line-height: 1.9; margin-top: 10px; }
+.install-intro { color: var(--muted); font-size: 12px; line-height: 1.9; margin-top: 10px; }
 .install-instructions { margin-top: 23px; display: grid; gap: 17px; }
 .install-instructions article { display: flex; gap: 12px; }
-.install-platform-icon { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #344333; background: #d5f78b09; border-radius: 9px; color: #c6dda9; flex: 0 0 34px; }
+.install-platform-icon { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #c4d7bc; background: var(--surface-soft); border-radius: 9px; color: var(--lime); flex: 0 0 34px; }
 .install-instructions h3 { font-size: 12px; line-height: 1.5; font-weight: 650; margin-bottom: 6px; }
-.install-instructions p { font-size: 11px; color: #95a3b8; line-height: 1.95; }
-.install-instructions strong { color: #cbd6e3; font-weight: 550; }
-.install-menu-note { font-size: 10px; line-height: 1.85; color: #7f8da1; margin-top: 16px; }
-.install-benefits { display: flex; gap: 15px; flex-wrap: wrap; margin-top: 19px; padding: 14px 0; border-top: 1px solid #293646; border-bottom: 1px solid #293646; }
-.install-benefits span { display: inline-flex; align-items: center; gap: 5px; color: #b9d39d; font-size: 10px; }
-.install-context-note { display: flex; align-items: flex-start; gap: 11px; background: #d5f78b08; border: 1px solid #384a33; border-radius: 9px; margin-top: 22px; padding: 15px; }
-.install-context-note > svg { color: #c5dda7; flex-shrink: 0; margin-top: 3px; }
-.install-context-note p { color: #c1cdb9; font-size: 12px; line-height: 1.9; }
-.install-prompt-note { font-size: 11px; line-height: 1.8; color: #e1bf83; border: 1px solid #5f4c2c; background: #e1bf8308; border-radius: 7px; padding: 10px 12px; margin-top: 18px; }
-.install-storage-note { display: flex; gap: 7px; font-size: 10px; line-height: 1.85; color: #7f8fa4; margin-top: 18px; }
-.install-storage-note svg { color: #9aab90; flex-shrink: 0; margin-top: 3px; }
-.install-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 13px 15px; border-radius: 7px; margin-top: 18px; background: #d5f78b; color: #182616; font-weight: 650; font-size: 12px; }
-.install-primary:hover { background: #e1ffa7; }
-.install-dismiss { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; border: 1px solid #394655; padding: 11px 15px; font-size: 12px; border-radius: 7px; margin-top: 21px; color: #c5d1e0; background: #1a2533; }
-.install-dismiss:hover { background: #253343; color: #edf1f7; }
+.install-instructions p { font-size: 11px; color: var(--muted); line-height: 1.95; }
+.install-instructions strong { color: var(--white); font-weight: 550; }
+.install-menu-note { font-size: 10px; line-height: 1.85; color: var(--muted); margin-top: 16px; }
+.install-benefits { display: flex; gap: 15px; flex-wrap: wrap; margin-top: 19px; padding: 14px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.install-benefits span { display: inline-flex; align-items: center; gap: 5px; color: var(--lime); font-size: 10px; }
+.install-context-note { display: flex; align-items: flex-start; gap: 11px; background: var(--surface-soft); border: 1px solid #c4d7bc; border-radius: 9px; margin-top: 22px; padding: 15px; }
+.install-context-note > svg { color: var(--lime); flex-shrink: 0; margin-top: 3px; }
+.install-context-note p { color: var(--white); font-size: 12px; line-height: 1.9; }
+.install-prompt-note { font-size: 11px; line-height: 1.8; color: var(--orange-ink); border: 1px solid #e6c99d; background: var(--surface-warm); border-radius: 7px; padding: 10px 12px; margin-top: 18px; }
+.install-storage-note { display: flex; gap: 7px; font-size: 10px; line-height: 1.85; color: var(--muted); margin-top: 18px; }
+.install-storage-note svg { color: var(--lime); flex-shrink: 0; margin-top: 3px; }
+.install-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 13px 15px; border-radius: 7px; margin-top: 18px; background: #f4b45c; color: #633a11; font-weight: 650; font-size: 12px; }
+.install-primary:hover { background: #efaa4e; }
+.install-dismiss { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; border: 1px solid #c5d1bf; padding: 11px 15px; font-size: 12px; border-radius: 7px; margin-top: 21px; color: var(--white); background: var(--surface-soft); }
+.install-dismiss:hover { background: #e5efdd; color: var(--white); }
 @media (max-width: 1100px) {
   .install-trigger { padding: 7px; }
   .install-trigger span { display: none; }
