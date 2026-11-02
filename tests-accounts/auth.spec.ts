@@ -18,7 +18,7 @@ async function backend(page:Page) {
   const rows:Record<string,Row> = {[alice]:snapshot(1_200_000),[bob]:snapshot(800_000)}
   const writes:{user:string;expected:string;revision:unknown}[]=[]
   const authRequests:{path:string;data:unknown}[]=[]
-  const server={rows,writes,authRequests,offline:false,oauthUrl:'',saveDelayMs:0}
+  const server={rows,writes,authRequests,offline:false,oauthUrl:'',saveDelayMs:0,signupFailure:false}
   await page.context().route('https://testproject.supabase.co/**',async route=>{
     if(server.offline){await route.abort('internetdisconnected');return}
     const request=route.request(),url=new URL(request.url()),path=url.pathname
@@ -35,7 +35,10 @@ async function backend(page:Page) {
       const id=uid(route) as keyof typeof users
       if(users[id])await json(users[id]);else await json({msg:'Invalid token'},401)
     } else if(path==='/auth/v1/logout')await route.fulfill({status:204})
-    else if(path==='/auth/v1/signup')await json({user:{id:'33333333-3333-4333-8333-333333333333',email:body.email,identities:[{provider:'email'}]},session:null})
+    else if(path==='/auth/v1/signup'){
+      if(server.signupFailure)await json({code:'unexpected_failure',msg:'Error sending confirmation email'},500)
+      else await json({user:{id:'33333333-3333-4333-8333-333333333333',email:body.email,identities:[{provider:'email'}]},session:null})
+    }
     else if(path==='/auth/v1/recover')await json({})
     else if(path==='/auth/v1/authorize'){server.oauthUrl=request.url();await route.fulfill({status:200,contentType:'text/html',body:'OAuth provider redirect intercepted by test fixture'})}
     else if(path==='/rest/v1/practice_accounts'){
@@ -218,4 +221,22 @@ test('a second tab cannot overwrite unsynced trades from the active account tab'
   await page.close()
   await expect(second.getByRole('button',{name:'USD / JPYの買い建玉を決済',exact:true})).toBeVisible({timeout:15000})
   expect(server.rows[alice].state.account.positions).toHaveLength(0)
+})
+
+
+test('SMTP failure displays a delivery error without claiming a confirmation was sent',async({page})=>{
+  const server=await backend(page)
+  server.signupFailure=true
+  await page.goto('/')
+  await page.getByRole('button',{name:'ログイン',exact:true}).click()
+  const dialog=page.getByRole('dialog')
+  await dialog.getByRole('button',{name:'新規登録',exact:true}).click()
+  await dialog.getByRole('textbox',{name:'メールアドレス',exact:true}).fill('new@example.test')
+  await dialog.locator('input[autocomplete="new-password"]').first().fill(password)
+  await dialog.getByLabel('パスワード（確認）',{exact:true}).fill(password)
+  await dialog.getByRole('button',{name:'アカウントを作成',exact:true}).click()
+  await expect(dialog.getByRole('alert')).toContainText('確認メールを送信できませんでした')
+  await expect(dialog.getByRole('heading',{name:'メールをご確認ください'})).not.toBeVisible()
+  expect(server.authRequests.filter(request=>request.path.startsWith('/auth/v1/signup'))).toHaveLength(1)
+  expect(server.writes).toHaveLength(0)
 })

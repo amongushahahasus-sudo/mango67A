@@ -26,10 +26,15 @@ const emailPreparationMessage = 'メールでの新規登録とパスワード�
 
 /** Keep provider details and account-existence information out of user-facing errors. */
 export function authErrorMessage(error: unknown, action: 'signin' | 'signup' | 'reset' | 'google' | 'signout' | 'password' | 'session' = 'session'): string {
-  const value = error as { code?: string; status?: number; name?: string; message?: string } | null
-  const code = value?.code || ''
-  const message = (value?.message || '').toLowerCase()
+  const value = error && typeof error === 'object' ? error as { code?: unknown; status?: unknown; name?: unknown; message?: unknown } : null
+  const code = typeof value?.code === 'string' ? value.code : ''
+  const message = typeof value?.message === 'string' ? value.message.toLowerCase() : ''
   if (value?.status === 429 || code.includes('rate_limit') || /too many|rate limit/.test(message)) return '試行回数が多くなっています。少し時間をおいて、もう一度お試しください。'
+  const emailDeliveryFailure = /error sending (?:confirmation|recovery|password recovery|password reset) e-?mail/.test(message)
+    || /(?:failed|unable) to send (?:confirmation|recovery|password recovery|password reset) (?:e-?mail|message)/.test(message)
+  if ((action === 'signup' || action === 'reset') && emailDeliveryFailure) return action === 'signup'
+    ? '確認メールを送信できませんでした。Googleでログインするか、時間をおいてお試しください。'
+    : '再設定用メールを送信できませんでした。Googleでログインするか、時間をおいてお試しください。'
   if (value?.name === 'AuthRetryableFetchError' || value?.name === 'TypeError' || /fetch|network|offline|failed to send/.test(message)) return action === 'signout' ? '通信できないため、ログアウトを完了できませんでした。接続を確認して、もう一度お試しください。' : '通信できませんでした。インターネット接続を確認して、もう一度お試しください。'
   if (code === 'email_not_confirmed' || /email not confirmed/.test(message)) return '確認メール内のリンクを開いて、メールアドレスの確認を完了してください。'
   if (code === 'weak_password' || /weak password|password.*least|password.*short/.test(message)) return 'より安全なパスワードを設定してください。8文字以上で、英字・数字などを組み合わせてください。'
