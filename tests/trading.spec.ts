@@ -9,7 +9,7 @@ test('market buy, spread, close, CSV export and persisted history', async ({ pag
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/')
   await pause(page)
-  await expect(page.getByRole('heading', { name: 'リスクの前に、経験を。' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /^(おはようございます|こんにちは|こんばんは)。$/ })).toBeVisible()
   await page.getByRole('button', { name: '買い注文を出す' }).click()
   const positions = page.getByRole('region', { name: '取引管理' })
   await expect(positions.getByRole('button', { name: 'USD / JPYの買い建玉を決済', exact: true })).toBeVisible()

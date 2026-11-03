@@ -4,6 +4,7 @@ import PriceChart from './components/PriceChart'
 import InstallApp from './components/InstallApp'
 import PwaStatus from './components/PwaStatus'
 import { ThemeSwitcher, ThemeSettings } from './components/ThemeControls'
+import HomeGreeting from './components/HomeGreeting'
 import { createSavedState, loadSavedState, GUEST_STORAGE_KEY } from './lib/practiceState'
 import type { SavedState, Timeframe } from './lib/practiceState'
 import { PAIRS, nextCandle, getQuote, accountMetrics, marginRequired, unrealizedPnl, openMarketPosition, closePosition, placeOrder, cancelOrder, processMarket } from './lib/engine'
@@ -199,7 +200,7 @@ export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onSt
         <div className="topbar-right"><PwaStatus /><ThemeSwitcher onOpenSettings={() => setModal('settings')} /><InstallApp />{accountControl}<span className="practice-badge"><span />DEMO ACCOUNT</span><button className="help-button" onClick={() => setModal('guide')}><CircleHelp size={16} /><span>使い方</span></button></div>
       </header>
       <main>
-        <section className="page-heading"><div><div className="eyebrow"><span className="tiny-dot" /> YOUR NEXT CHAPTER STARTS HERE</div><h1>{view === 'trade' ? <>リスクの前に、<span>経験を。</span></> : <>FXを知る。<span>自信に変える。</span></>}</h1><p>{view === 'trade' ? '仮想資金100万円で、相場と向き合う練習を。' : 'はじめの一歩から、取引を振り返るところまで。'}</p></div><div className="simulation-label"><ShieldCheck size={17} /><div><strong>練習だけに、集中できる。</strong><span>登録不要 · 実際の資金は使いません</span></div></div></section>
+        <section className="page-heading"><div><div className="eyebrow"><span className="tiny-dot" /> YOUR NEXT CHAPTER STARTS HERE</div><h1>{view === 'trade' ? <HomeGreeting /> : <>FXを知る。<span>自信に変える。</span></>}</h1><p>{view === 'trade' ? '仮想資金100万円で、相場と向き合う練習を。' : 'はじめの一歩から、取引を振り返るところまで。'}</p></div><div className="simulation-label"><ShieldCheck size={17} /><div><strong>練習だけに、集中できる。</strong><span>登録不要 · 実際の資金は使いません</span></div></div></section>
         {accountNotice}
         {saveFailed && <div className="notice-banner" role="alert"><Info size={17} />このブラウザでは進捗を保存できません。ページを閉じると現在の取引が失われます。</div>}
         {view === 'learn' ? <section className="learn-page"><div className="learn-hero"><div className="learn-icon"><BookOpen size={32} /></div><div><span className="eyebrow">THE BASICS</span><h2>しくみがわかると、取引が変わる。</h2><p>4つのポイントを押さえて、小さな数量から試してみましょう。</p></div></div><div className="lesson-grid">{guideSteps.map((step, index) => <article className="lesson-card" key={step.title}><div className="lesson-top"><step.icon size={25} /><span>0{index+1}</span></div><h3>{step.title}</h3><p>{step.text}</p></article>)}</div><div className="panel assumptions"><h3><Info size={18} />このシミュレーターの取引ルール</h3><p>価格はモデルが生成する練習用データで、実際の為替レートではありません。初期資金100万円、レバレッジ25倍、1 lot＝1万通貨。スプレッドは固定で、取引手数料・スワップ・税金は計算に含みません。EUR/USDの損益はUSD/JPYで円換算します。</p><p>相場は2秒で1分進みます（通常速度）。停止中でも注文・決済できます。指値・逆指値、利確・損切りは各更新時の売買可能なBid/Askで判定し、その時のレートで約定します。待機注文の証拠金は約定時に確認し、不足する注文はキャンセルされます。実際の市場の流動性や通信遅延は再現しません。</p><button className="primary-button" onClick={() => setView('trade')}>トレードを始める<ArrowRight size={17} /></button></div></section> : <>
