@@ -51,7 +51,7 @@ test('offline launch, market trade, close and persisted history', async ({ page,
   await page.reload()
   await expect(page.locator('html')).toHaveAttribute('data-theme','dark')
   await expect(page.locator('.panel').first()).toHaveCSS('background-color','rgb(16, 23, 34)')
-  await expect(page.getByRole('heading',{name:'リスクの前に、経験を。'})).toBeVisible()
+  await expect(page.getByRole('heading',{name:/^(おはようございます|こんにちは|こんばんは)。$/})).toBeVisible()
   await expect(page.locator('.pwa-status')).toContainText('オフライン')
   await page.getByRole('button',{name:'買い注文を出す',exact:true}).click()
   await page.getByRole('button',{name:'USD / JPYの買い建玉を決済',exact:true}).click()
