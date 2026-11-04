@@ -42,7 +42,8 @@ async function backend(page: Page) {
     photos: [{ id: photoId, title: '朝の海', description: '開発者が撮影した海の写真です。', price: 2000, published: true, previewPath: `${photoId}/preview.jpg`, originalPath: `${photoId}/original.png`, revision: 1, createdAt: time }] as CatalogPhoto[],
     purchases: {} as Record<string, Record<string, Purchase>>,
     purchaseRequests: [] as { user: string; photo: string; price: number }[],
-    uploads: [] as { user: string; path: string; type: string }[],
+    uploads: [] as { user: string; path: string; type: string; bytes: Buffer }[],
+    previewImage: image,
     originalRequests: [] as { user: string; path: string }[],
     saves: [] as { user: string; body: Record<string, unknown> }[],
     setupMissing: false,
@@ -108,7 +109,11 @@ async function backend(page: Page) {
       const selected = server.photos.find(photo => photo.id === body.p_photo_id)
       if (!selected || !(server.roles[id] || server.purchases[id]?.[selected.id])) { await fail('SHOP_PURCHASE_REQUIRED', 403, '42501'); return }
       await json({ originalPath: selected.originalPath, fileName: `${selected.title}.png` })
-    } else if (path.startsWith('/storage/v1/object/public/photo-previews/')) await route.fulfill({ status: 200, contentType: 'image/png', body: image, headers: { 'access-control-allow-origin': '*' } })
+    } else if (path.startsWith('/storage/v1/object/public/photo-previews/')) {
+      const objectPath = path.slice('/storage/v1/object/public/'.length)
+      const uploaded = server.uploads.find(upload => upload.path === `/storage/v1/object/${objectPath}`)
+      await route.fulfill({ status: 200, contentType: uploaded?.type ?? 'image/png', body: uploaded?.bytes ?? server.previewImage, headers: { 'access-control-allow-origin': '*' } })
+    }
     else if (path.startsWith('/storage/v1/object/photo-originals/') && request.method() === 'GET') {
       const objectPath = path.slice('/storage/v1/object/photo-originals/'.length)
       const selected = server.photos.find(photo => photo.originalPath === objectPath)
@@ -117,8 +122,10 @@ async function backend(page: Page) {
       await route.fulfill({ status: 200, contentType: 'image/png', body: image, headers: { 'access-control-allow-origin': '*' } })
     } else if (path.startsWith('/storage/v1/object/') && request.method() === 'POST') {
       if (!id || !server.roles[id]) { await fail('SHOP_ADMIN_REQUIRED', 403, '42501'); return }
-      const uploadType = request.postDataBuffer()?.toString('latin1').match(/Content-Type: (image\/(?:png|jpeg|webp))/i)?.[1] ?? request.headers()['content-type'] ?? ''
-      server.uploads.push({ user: id, path, type: uploadType })
+      const form = await new Response(request.postDataBuffer(), { headers: { 'content-type': request.headers()['content-type'] } }).formData()
+      const uploaded = Array.from(form.values()).find(value => typeof value !== 'string')
+      if (!uploaded || typeof uploaded === 'string') throw new Error('Fixture expected an uploaded image file')
+      server.uploads.push({ user: id, path, type: uploaded.type, bytes: Buffer.from(await uploaded.arrayBuffer()) })
       await json({ Key: path.slice('/storage/v1/object/'.length), Id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd' })
     } else if (path.startsWith('/storage/v1/object/') && request.method() === 'DELETE') await json([])
     else await fail(`Unhandled fixture endpoint ${path}`, 500)
@@ -140,6 +147,20 @@ async function logout(page: Page, name = 'Alice') {
   await expect(page.getByRole('button', { name: 'ログイン', exact: true })).toBeVisible({ timeout: 15000 })
 }
 async function openShop(page: Page) { await page.getByRole('button', { name: '写真ショップ', exact: true }).click() }
+
+async function largeFixtureImage(page: Page): Promise<Buffer> {
+  const bytes = await page.evaluate(async () => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 1280; canvas.height = 960
+    const context = canvas.getContext('2d')!
+    const gradient = context.createLinearGradient(0, 0, 1280, 960)
+    gradient.addColorStop(0, '#98ba72'); gradient.addColorStop(1, '#f7b25d')
+    context.fillStyle = gradient; context.fillRect(0, 0, 1280, 960)
+    const blob = await new Promise<Blob>(resolve => canvas.toBlob(value => resolve(value!), 'image/png'))
+    return Array.from(new Uint8Array(await blob.arrayBuffer()))
+  })
+  return Buffer.from(bytes)
+}
 
 test('guests can browse previews and cannot access developer controls', async ({ page }) => {
   const server = await backend(page)
@@ -170,7 +191,11 @@ test('a normal user buys once and keeps private downloads after logout and archi
   expect(server.rows[alice].state.account.balance).toBe(1_005_000)
   const download = page.waitForEvent('download')
   await page.getByRole('dialog').getByRole('button', { name: '原本をダウンロード', exact: true }).click()
-  expect((await download).suggestedFilename()).toBe('朝の海.png')
+  const downloaded = await download
+  expect(downloaded.suggestedFilename()).toBe('朝の海.png')
+  const downloadedPath = await downloaded.path()
+  expect(downloadedPath).not.toBeNull()
+  expect((await readFile(downloadedPath!)).equals(await readFile('public/icons/mango-fx-192.png'))).toBe(true)
   expect(server.originalRequests).toEqual([{ user: alice, path: `${photoId}/original.png` }])
   await page.getByRole('button', { name: '写真の詳細を閉じる', exact: true }).click()
   await expect(page.locator('.photo-wallet-main strong')).toHaveText('3,000 仮想円')
@@ -207,7 +232,8 @@ test('a developer uploads original and preview, then changes price and publicati
   await page.goto('/')
   await login(page, 'developer@example.test')
   await page.getByRole('button', { name: '写真の管理', exact: true }).click()
-  await page.getByLabel('投稿する写真', { exact: true }).setInputFiles('public/icons/mango-fx-192.png')
+  const original = await largeFixtureImage(page)
+  await page.getByLabel('投稿する写真', { exact: true }).setInputFiles({ name: 'large-landscape.png', mimeType: 'image/png', buffer: original })
   await page.getByLabel('タイトル', { exact: true }).fill('新しい風景')
   await page.getByLabel('写真の説明', { exact: true }).fill('撮影した風景の写真。')
   await page.getByLabel('価格（仮想円）', { exact: true }).fill('1500')
@@ -216,6 +242,15 @@ test('a developer uploads original and preview, then changes price and publicati
   expect(server.uploads).toHaveLength(2)
   expect(server.uploads.every(upload => upload.user === developer)).toBe(true)
   expect(server.uploads.map(upload => upload.type)).toEqual(['image/png', 'image/jpeg'])
+  expect(server.uploads[0].bytes.equals(original)).toBe(true)
+  const previewSize = await page.evaluate(async bytes => {
+    const bitmap = await createImageBitmap(new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' }))
+    const size = { width: bitmap.width, height: bitmap.height }
+    bitmap.close()
+    return size
+  }, Array.from(server.uploads[1].bytes))
+  expect(Math.max(previewSize.width, previewSize.height)).toBe(640)
+  expect(previewSize.width / previewSize.height).toBeCloseTo(4 / 3)
   const created = server.photos.find(photo => photo.title === '新しい風景')!
   expect(created.originalPath).toMatch(/^[0-9a-f-]+\/original\.png$/)
   const card = page.locator('article').filter({ has: page.getByRole('heading', { name: '新しい風景', exact: true }) })
@@ -251,4 +286,47 @@ test('mobile shop works in both palettes and missing setup stays closed to purch
   await expect(page.getByRole('button', { name: '写真を見る', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '写真の管理', exact: true })).toHaveCount(0)
   expect(server.purchaseRequests).toHaveLength(0)
+})
+
+test.describe('touch preview interaction', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+
+  test('previews use reduced canvases and suppress save/drag events while the shop stays usable', async ({ page }) => {
+    const server = await backend(page)
+    await page.goto('/')
+    server.previewImage = await largeFixtureImage(page)
+    await page.getByRole('button', { name: 'メニューを開く', exact: true }).click()
+    await openShop(page)
+    const card = page.locator('.photo-preview-button .protected-photo-preview')
+    await card.scrollIntoViewIfNeeded()
+    await expect(card).toHaveAttribute('data-preview-status', 'ready')
+    await expect(page.locator('.photo-preview-button img')).toHaveCount(0)
+    expect(await card.locator('canvas').evaluate(canvas => Math.max((canvas as HTMLCanvasElement).width, (canvas as HTMLCanvasElement).height))).toBe(640)
+    const checkSuppression = async (target: typeof card) => {
+      expect(await target.evaluate(element => {
+        const menu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+        const drag = new DragEvent('dragstart', { bubbles: true, cancelable: true })
+        return { menuCancelled: !element.dispatchEvent(menu), dragCancelled: !element.dispatchEvent(drag), userSelect: getComputedStyle(element).userSelect }
+      })).toEqual({ menuCancelled: true, dragCancelled: true, userSelect: 'none' })
+    }
+    await checkSuppression(card)
+    const box = await card.boundingBox()
+    await page.touchscreen.tap(box!.x + box!.width / 2, box!.y + box!.height / 2)
+    const dialog = page.getByRole('dialog', { name: '朝の海', exact: true })
+    await expect(dialog).toBeVisible()
+    const detail = dialog.locator('.protected-photo-preview')
+    await expect(detail).toHaveAttribute('data-preview-status', 'ready')
+    await expect(dialog.locator('img')).toHaveCount(0)
+    await checkSuppression(detail)
+    await page.screenshot({ path: '.local/photo-shop-protected-preview-mobile.png' })
+    await dialog.getByRole('button', { name: '写真の詳細を閉じる', exact: true }).tap()
+    await expect(dialog).toHaveCount(0)
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+    expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0)
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await page.getByRole('button', { name: '更新', exact: true }).tap()
+    await expect(page.getByRole('heading', { name: '朝の海', exact: true })).toBeVisible()
+    expect(server.originalRequests).toHaveLength(0)
+    expect(server.purchaseRequests).toHaveLength(0)
+  })
 })

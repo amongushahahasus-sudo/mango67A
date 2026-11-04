@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { drawPhotoWatermark } from './photoWatermark'
 
 export type ShopRole = 'developer' | 'admin' | null
 export interface ShopPhoto {
@@ -158,13 +159,14 @@ async function createPreview(file: Blob): Promise<Blob> {
     const width = source instanceof HTMLImageElement ? source.naturalWidth : source.width
     const height = source instanceof HTMLImageElement ? source.naturalHeight : source.height
     if (!width || !height || width * height > 60_000_000) throw new PhotoShopError('invalid_photo', '写真の画像サイズが大きすぎるため、少し小さくしてから投稿してください。')
-    const ratio = Math.min(1, 960 / Math.max(width, height))
+    const ratio = Math.min(1, 640 / Math.max(width, height))
     const canvas = document.createElement('canvas')
     canvas.width = Math.max(1, Math.round(width * ratio)); canvas.height = Math.max(1, Math.round(height * ratio))
     const context = canvas.getContext('2d')
     if (!context) throw new Error('Canvas unavailable')
     context.fillStyle = '#fff'; context.fillRect(0, 0, canvas.width, canvas.height)
     context.drawImage(source, 0, 0, canvas.width, canvas.height)
+    drawPhotoWatermark(context, canvas.width, canvas.height)
     const strip = Math.min(canvas.height, Math.max(25, canvas.height * .13))
     context.fillStyle = '#172d24b8'; context.fillRect(0, canvas.height - strip, canvas.width, strip)
     context.fillStyle = '#fff'; context.font = `600 ${Math.max(12, Math.min(28, canvas.width / 22))}px sans-serif`

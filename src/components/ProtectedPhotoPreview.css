@@ -1,0 +1,4 @@
+.protected-photo-preview { position: relative; display: block; overflow: hidden; background: var(--surface-soft); -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.protected-photo-preview > canvas { display: block; width: 100%; height: 100%; object-fit: inherit; pointer-events: none; -webkit-user-drag: none; }
+.protected-photo-preview[data-preview-status=loading] > canvas, .protected-photo-preview[data-preview-status=error] > canvas { visibility: hidden; }
+.protected-preview-message { position: absolute; inset: 0; display: grid; place-items: center; padding: 15px; font-size: 10px; line-height: 1.8; text-align: center; color: var(--muted); }

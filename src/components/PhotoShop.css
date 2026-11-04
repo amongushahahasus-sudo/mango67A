@@ -30,8 +30,9 @@
 .photo-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
 .photo-card { min-width: 0; border: 1px solid var(--border); border-radius: 11px; overflow: hidden; background: var(--panel); }
 .photo-preview-button { display: block; width: 100%; padding: 0; aspect-ratio: 4 / 3; position: relative; overflow: hidden; background: var(--surface-soft); }
-.photo-preview-button > img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .25s ease; }
-.photo-preview-button:hover > img { transform: scale(1.035); }
+.photo-preview-button > .protected-photo-preview { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .25s ease; }
+.photo-preview-button canvas { transition: transform .25s ease; }
+.photo-preview-button:hover canvas { transform: scale(1.035); }
 .photo-preview-label, .photo-owned-badge { position: absolute; top: 11px; left: 11px; padding: 5px 7px; background: var(--panel); color: var(--muted); border: 1px solid var(--border); border-radius: 5px; font-size: 8px; }
 .photo-owned-badge { display: inline-flex; align-items: center; gap: 5px; left: auto; right: 11px; color: var(--lime); }
 .photo-card-body { padding: 18px; }
@@ -92,6 +93,7 @@
 :root[data-theme="dark"] .photo-dialog-backdrop { background: #03070dc9; }
 .photo-dialog { width: min(620px, 100%); max-height: calc(100dvh - 48px); overflow-y: auto; position: relative; border: 1px solid var(--border); border-radius: 14px; background: var(--panel); color: var(--text); box-shadow: var(--shadow); outline: none; }
 .photo-dialog-close { display: grid; place-items: center; position: absolute; right: 14px; top: 14px; width: 33px; height: 33px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); background: var(--panel); z-index: 1; }
+.photo-preview-notice { color: var(--muted); font-size: 10px; line-height: 1.8; margin-bottom: 15px; }
 .photo-dialog-image { display: block; width: 100%; max-height: 370px; aspect-ratio: 4 / 3; object-fit: contain; background: var(--surface-soft); }
 .photo-dialog-content { padding: 26px 28px; }
 .photo-dialog-content h2 { font-size: 24px; line-height: 1.65; margin: 8px 0 10px; font-weight: 650; overflow-wrap: anywhere; }
@@ -109,4 +111,4 @@
 @media (max-width: 1100px) { .photo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .photo-shop-hero { padding: 23px; gap: 16px; } .photo-wallet { padding: 22px; gap: 22px; } .photo-wallet-detail { padding-left: 22px; } }
 @media (max-width: 700px) { .photo-shop-hero { display: grid; grid-template-columns: 45px minmax(0, 1fr); padding: 21px; gap: 14px; align-items: start; } .photo-shop-hero > div:nth-child(2) { min-width: 0; } .photo-hero-mark { width: 45px; height: 45px; border-radius: 13px; } .photo-hero-mark > svg { width: 23px; height: 23px; } .photo-shop-hero h2 { font-size: 18px; } .photo-shop-hero p { font-size: 10px; } .photo-refresh { grid-column: 2; justify-self: start; margin-left: 0; } .photo-wallet { grid-template-columns: 1fr; padding: 20px; gap: 17px; } .photo-wallet-detail { border-left: 0; border-top: 1px solid var(--border); padding: 16px 0 0; gap: 10px; } .photo-wallet-main > strong { font-size: 26px; } .photo-grid { gap: 15px; } .photo-card-body { padding: 15px; } .photo-card-price > strong { font-size: 15px; } .photo-login-note { flex-wrap: wrap; gap: 12px; padding: 18px; } .photo-login-note > .photo-secondary { margin-left: 32px; } .photo-login-note > div:nth-child(2) { flex-basis: calc(100% - 40px); } .photo-editor { padding: 20px; } .photo-editor-form { grid-template-columns: 1fr; gap: 18px; } .photo-file-field { min-height: 180px; } .photo-editor-heading { gap: 10px; flex-wrap: wrap; } .photo-editor-heading > div { flex: 1; min-width: 0; } .photo-editor-bottom { flex-direction: column; align-items: stretch; gap: 13px; } .photo-editor-bottom > button { width: 100%; } .photo-dialog-backdrop { padding: 15px; } .photo-dialog { max-height: calc(100dvh - 30px); border-radius: 12px; } .photo-dialog-content { padding: 23px; } .photo-dialog-content h2 { font-size: 21px; } .photo-dialog-price > strong { font-size: 20px; } .photo-dialog-image { max-height: 290px; } }
 @media (max-width: 520px) { .photo-grid { grid-template-columns: 1fr; } .photo-shop-hero h2 { font-size: 17px; } .photo-shop-hero { padding: 19px; } .photo-filter { gap: 3px; } .photo-filter button { padding: 8px 10px; font-size: 10px; } .photo-editor-options { grid-template-columns: 1fr; gap: 12px; } .photo-state { min-height: 260px; padding: 32px 20px; } .photo-state h3 { font-size: 15px; } }
-@media (prefers-reduced-motion: reduce) { .photo-preview-button > img { transition: none; } .photo-spinner { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .photo-preview-button canvas { transition: none; } .photo-spinner { animation: none; } }
