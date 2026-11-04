@@ -35,8 +35,9 @@ function errorText(error: unknown): string {
 
 export default function AccountWorkspace() {
   const { user, loading, configured } = useAuth()
+  const [signInRequest, setSignInRequest] = useState(0)
   if (loading) return <WorkspaceScreen title="ログイン状態を確認しています" />
-  if (!user) return <App key="guest" accountControl={configured ? <AccountMenu /> : undefined} />
+  if (!user) return <App key="guest" accountControl={configured ? <AccountMenu signInRequest={signInRequest} /> : undefined} onRequestLogin={configured ? () => setSignInRequest(value => value + 1) : undefined} />
   return <AccountWorkspaceLock key={user.id} userId={user.id}><PersonalWorkspace user={user} /></AccountWorkspaceLock>
 }
 
@@ -207,6 +208,14 @@ function PersonalWorkspace({ user }: { user: User }) {
     // Preserve all unsaved updates locally even if prices advanced during the request.
     persist()
   },[persist])
+  const beforePhotoPurchase = useCallback(async () => {
+    const r = runtime.current!
+    if (r.disposed || r.blocked || !r.known || !r.writable) throw new Error('購入の前にクラウドとの同期を完了してください。')
+    if (!navigator.onLine) throw new Error('写真の購入にはオンライン接続が必要です。')
+    await beforeSignOut()
+    if (r.disposed || r.blocked || !r.writable) throw new Error('口座の状態が変わりました。再接続してから購入してください。')
+    if (r.savedImportantGeneration < r.importantGeneration) await operations.current.flush()
+  }, [beforeSignOut])
   const choose = async (which: 'cloud' | 'local') => {
     const r = runtime.current!
     if (r.disposed || working) return
@@ -237,7 +246,7 @@ function PersonalWorkspace({ user }: { user: User }) {
   if (!initialState) return <WorkspaceScreen title={chooseGuest?'最初の口座を選んでください':status==='loading'?'あなたの口座を読み込んでいます':'口座を読み込めませんでした'} message={message} controls={control}>
     {chooseGuest ? <div className="workspace-start-choice"><p>このブラウザにはゲストの練習データがあります。自分の練習であれば、個人口座へ引き継げます。ゲストのデータはそのまま残ります。</p><button onClick={()=>migrate(true)}><Cloud size={17}/>この端末の練習を引き継ぐ</button><button className="workspace-secondary" onClick={()=>migrate(false)}>仮想資金100万円から始める</button></div> : status!=='loading' ? <button className="workspace-retry" onClick={()=>void operations.current.refresh()}><RefreshCw size={16}/>もう一度読み込む</button> : null}
   </WorkspaceScreen>
-  return <App key={epoch} initialState={initialState} storageKey={key} onStateChange={changed} accountControl={control} accountStatus={label} accountNotice={notice} userLabel={nameOf(user)} />
+  return <App key={epoch} initialState={initialState} storageKey={key} onStateChange={changed} accountControl={control} accountStatus={label} accountNotice={notice} userLabel={nameOf(user)} onBeforePhotoPurchase={beforePhotoPurchase} />
 }
 
 function WorkspaceScreen({title,message,controls,children}:{title:string;message?:string;controls?:React.ReactNode;children?:React.ReactNode}) {

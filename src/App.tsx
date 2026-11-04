@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowDownLeft, ArrowRight, ArrowUpRight, BarChart3, BookOpen, Check, ChevronRight, CircleHelp, Clock3, Download, Expand, Gauge, History, Info, LayoutDashboard, Menu, Pause, Play, Plus, RotateCcw, Settings2, ShieldCheck, Sparkles, TrendingUp, Wallet, X } from 'lucide-react'
+import { ArrowDownLeft, ArrowRight, ArrowUpRight, BarChart3, BookOpen, Check, ChevronRight, CircleHelp, Camera, Clock3, Download, Expand, Gauge, History, Info, LayoutDashboard, Menu, Pause, Play, Plus, RotateCcw, Settings2, ShieldCheck, Sparkles, TrendingUp, Wallet, X } from 'lucide-react'
 import PriceChart from './components/PriceChart'
 import InstallApp from './components/InstallApp'
 import PwaStatus from './components/PwaStatus'
 import { ThemeSwitcher, ThemeSettings } from './components/ThemeControls'
 import HomeGreeting from './components/HomeGreeting'
+import PhotoShop from './components/PhotoShop'
+import { useAuth } from './auth/AuthProvider'
+import { loadPhotoShop, type ShopRole } from './lib/photoShop'
+import appIcon from './assets/app-icon.png?inline'
 import { createSavedState, loadSavedState, GUEST_STORAGE_KEY } from './lib/practiceState'
 import type { SavedState, Timeframe } from './lib/practiceState'
 import { PAIRS, nextCandle, getQuote, accountMetrics, marginRequired, unrealizedPnl, openMarketPosition, closePosition, placeOrder, cancelOrder, processMarket } from './lib/engine'
@@ -54,10 +58,20 @@ export interface AppProps {
   accountStatus?: string
   accountNotice?: ReactNode
   userLabel?: string
+  onBeforePhotoPurchase?: () => Promise<void>
+  onRequestLogin?: () => void
 }
-export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onStateChange, accountControl, accountStatus, accountNotice, userLabel }: AppProps = {}) {
+export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onStateChange, accountControl, accountStatus, accountNotice, userLabel, onBeforePhotoPurchase, onRequestLogin }: AppProps = {}) {
   const [state, setState] = useState<SavedState>(() => initialState ?? loadSavedState(storageKey))
-  const [view, setView] = useState<'trade' | 'learn'>('trade')
+  const [view, setView] = useState<'trade' | 'learn' | 'shop' | 'admin'>('trade')
+  const { user } = useAuth()
+  const [shopRole, setShopRole] = useState<ShopRole>(null)
+  useEffect(() => {
+    let active = true
+    setShopRole(null)
+    if (user) void loadPhotoShop(user.id).then(shop => { if (active) setShopRole(shop.role) }).catch(() => {})
+    return () => { active = false }
+  }, [user?.id])
   const [modal, setModal] = useState<Modal>(null)
   const [side, setSide] = useState<Side>('buy')
   const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop'>('market')
@@ -185,11 +199,13 @@ export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onSt
 
   return <div className="app-shell">
     <aside className={`sidebar ${mobileNav ? 'mobile-open' : ''}`} aria-label="メインナビゲーション">
-      <button className="brand-icon" aria-label="MANGO FX ホーム" onClick={() => { setView('trade'); setMobileNav(false) }}><svg viewBox="0 0 32 32"><path d="M6 24V9l10 12L26 9v15" fill="none" stroke="currentColor" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
+      <button className="brand-icon" aria-label="MANGO FX ホーム" onClick={() => { setView('trade'); setMobileNav(false) }}><img src={appIcon} alt="" /></button>
       <div className="nav-main">
         <button className={`nav-button ${view === 'trade' ? 'active' : ''}`} title="トレード" aria-label="トレード" onClick={() => { setView('trade'); setMobileNav(false) }}><LayoutDashboard size={21} /><span>トレード</span></button>
         <button className="nav-button" title="取引履歴" aria-label="取引履歴へ移動" onClick={jumpHistory}><History size={21} /><span>取引履歴</span></button>
         <button className={`nav-button ${view === 'learn' ? 'active' : ''}`} title="学習ガイド" aria-label="学習ガイド" onClick={() => { setView('learn'); setMobileNav(false) }}><BookOpen size={21} /><span>学ぶ</span></button>
+        <button className={`nav-button ${view === 'shop' ? 'active' : ''}`} title="写真ショップ" aria-label="写真ショップ" onClick={() => { setView('shop'); setMobileNav(false) }}><Camera size={21} /><span>写真</span></button>
+        {shopRole && <button className={`nav-button ${view === 'admin' ? 'active' : ''}`} title="写真の管理" aria-label="写真の管理" onClick={() => { setView('admin'); setMobileNav(false) }}><ShieldCheck size={21} /><span>写真管理</span></button>}
       </div>
       <div className="nav-bottom"><button className="nav-button" title="シミュレーター設定" aria-label="シミュレーター設定" onClick={() => setModal('settings')}><Settings2 size={20} /><span>設定</span></button><div className="avatar" title={userLabel || "ゲスト練習用アカウント"}>{userLabel?.slice(0,1).toUpperCase() || "M"}</div></div>
     </aside>
@@ -200,10 +216,10 @@ export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onSt
         <div className="topbar-right"><PwaStatus /><ThemeSwitcher onOpenSettings={() => setModal('settings')} /><InstallApp />{accountControl}<span className="practice-badge"><span />DEMO ACCOUNT</span><button className="help-button" onClick={() => setModal('guide')}><CircleHelp size={16} /><span>使い方</span></button></div>
       </header>
       <main>
-        <section className="page-heading"><div><div className="eyebrow"><span className="tiny-dot" /> YOUR NEXT CHAPTER STARTS HERE</div><h1>{view === 'trade' ? <HomeGreeting /> : <>FXを知る。<span>自信に変える。</span></>}</h1><p>{view === 'trade' ? '仮想資金100万円で、相場と向き合う練習を。' : 'はじめの一歩から、取引を振り返るところまで。'}</p></div><div className="simulation-label"><ShieldCheck size={17} /><div><strong>練習だけに、集中できる。</strong><span>登録不要 · 実際の資金は使いません</span></div></div></section>
+        <section className="page-heading"><div><div className="eyebrow"><span className="tiny-dot" /> YOUR NEXT CHAPTER STARTS HERE</div><h1>{view === 'trade' ? <HomeGreeting /> : view === 'learn' ? <>FXを知る。<span>自信に変える。</span></> : view === 'shop' ? <>練習の成果を、<span>一枚に。</span></> : <>写真の投稿と、<span>管理を。</span></>}</h1><p>{view === 'trade' ? '仮想資金100万円で、相場と向き合う練習を。' : view === 'learn' ? 'はじめの一歩から、取引を振り返るところまで。' : view === 'shop' ? 'あなたの仮想利益で、開発者の写真コレクションを。' : '写真の投稿・価格・公開状態を管理します。'}</p></div><div className="simulation-label"><ShieldCheck size={17} /><div><strong>練習だけに、集中できる。</strong><span>登録不要 · 実際の資金は使いません</span></div></div></section>
         {accountNotice}
         {saveFailed && <div className="notice-banner" role="alert"><Info size={17} />このブラウザでは進捗を保存できません。ページを閉じると現在の取引が失われます。</div>}
-        {view === 'learn' ? <section className="learn-page"><div className="learn-hero"><div className="learn-icon"><BookOpen size={32} /></div><div><span className="eyebrow">THE BASICS</span><h2>しくみがわかると、取引が変わる。</h2><p>4つのポイントを押さえて、小さな数量から試してみましょう。</p></div></div><div className="lesson-grid">{guideSteps.map((step, index) => <article className="lesson-card" key={step.title}><div className="lesson-top"><step.icon size={25} /><span>0{index+1}</span></div><h3>{step.title}</h3><p>{step.text}</p></article>)}</div><div className="panel assumptions"><h3><Info size={18} />このシミュレーターの取引ルール</h3><p>価格はモデルが生成する練習用データで、実際の為替レートではありません。初期資金100万円、レバレッジ25倍、1 lot＝1万通貨。スプレッドは固定で、取引手数料・スワップ・税金は計算に含みません。EUR/USDの損益はUSD/JPYで円換算します。</p><p>相場は2秒で1分進みます（通常速度）。停止中でも注文・決済できます。指値・逆指値、利確・損切りは各更新時の売買可能なBid/Askで判定し、その時のレートで約定します。待機注文の証拠金は約定時に確認し、不足する注文はキャンセルされます。実際の市場の流動性や通信遅延は再現しません。</p><button className="primary-button" onClick={() => setView('trade')}>トレードを始める<ArrowRight size={17} /></button></div></section> : <>
+        {view === 'shop' || view === 'admin' ? <PhotoShop key={`${user?.id ?? 'guest'}:${view}`} mode={view} userId={user?.id ?? null} onBeforePurchase={onBeforePhotoPurchase} onRoleChange={setShopRole} onRequestLogin={onRequestLogin} /> : view === 'learn' ? <section className="learn-page"><div className="learn-hero"><div className="learn-icon"><BookOpen size={32} /></div><div><span className="eyebrow">THE BASICS</span><h2>しくみがわかると、取引が変わる。</h2><p>4つのポイントを押さえて、小さな数量から試してみましょう。</p></div></div><div className="lesson-grid">{guideSteps.map((step, index) => <article className="lesson-card" key={step.title}><div className="lesson-top"><step.icon size={25} /><span>0{index+1}</span></div><h3>{step.title}</h3><p>{step.text}</p></article>)}</div><div className="panel assumptions"><h3><Info size={18} />このシミュレーターの取引ルール</h3><p>価格はモデルが生成する練習用データで、実際の為替レートではありません。初期資金100万円、レバレッジ25倍、1 lot＝1万通貨。スプレッドは固定で、取引手数料・スワップ・税金は計算に含みません。EUR/USDの損益はUSD/JPYで円換算します。</p><p>相場は2秒で1分進みます（通常速度）。停止中でも注文・決済できます。指値・逆指値、利確・損切りは各更新時の売買可能なBid/Askで判定し、その時のレートで約定します。待機注文の証拠金は約定時に確認し、不足する注文はキャンセルされます。実際の市場の流動性や通信遅延は再現しません。</p><button className="primary-button" onClick={() => setView('trade')}>トレードを始める<ArrowRight size={17} /></button></div></section> : <>
           <section className="account-grid" aria-label="口座状況">
             <article className="stat-card"><div className="stat-top"><span>純資産</span><Wallet size={16} /></div><div className="stat-value">{yen(metrics.equity)}</div><div className="stat-caption"><span className={totalPnl >= 0 ? 'text-up' : 'text-down'}>{totalPnl >= 0 ? <ArrowUpRight size={13} /> : <ArrowDownLeft size={13} />}{yen(totalPnl, true)}</span><span>開始時から</span></div></article>
             <article className="stat-card"><div className="stat-top"><span>評価損益</span><TrendingUp size={16} /></div><div className={`stat-value ${metrics.unrealizedPnl >= 0 ? 'text-up' : 'text-down'}`}>{yen(metrics.unrealizedPnl, true)}</div><div className="stat-caption">保有中の建玉 <strong>{state.account.positions.length}</strong> 件</div></article>
