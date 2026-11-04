@@ -44,7 +44,7 @@ export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest,
   const name = typeof rawName === 'string' && rawName.trim() ? rawName.trim().slice(0, 40) : auth.user?.email?.split('@')[0] || 'マイアカウント'
   const initial = Array.from(name)[0]?.toUpperCase() || 'M'
 
-  const closeModal = () => { setMode(null); setPassword(''); setConfirmPassword(''); setShowPassword(false); setError('') }
+  const closeModal = () => { auth.clearAuthError(); setMode(null); setPassword(''); setConfirmPassword(''); setShowPassword(false); setError('') }
   const openMode = (next: Mode) => { setMenuOpen(false); setMode(next); setPassword(''); setConfirmPassword(''); setShowPassword(false); setError('') }
   useEffect(() => {
     if (lastSignInRequest.current === signInRequest) return
@@ -57,8 +57,8 @@ export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest,
       lastUserId.current = nextId
       setMenuOpen(false)
       setPassword(''); setConfirmPassword(''); setShowPassword(false)
-      setEmail(''); setDisplayName(''); setError('')
-      setMode(current => current === 'recovery' && nextId ? current : null)
+      setEmail(''); setDisplayName(''); setError(auth.authError || '')
+      setMode(current => auth.authError ? 'signin' : current === 'recovery' && nextId ? current : null)
     }
   }, [auth.user?.id])
   useEffect(() => {
@@ -71,8 +71,10 @@ export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest,
     }
   }, [auth.emailRegistrationReady])
   useEffect(() => {
-    if (auth.authError) { setError(auth.authError); setMode('signin'); auth.clearAuthError() }
-  }, [auth.authError, auth.clearAuthError])
+    // Rendering a notice is not acknowledgement: this component can remount
+    // when the personal workspace finishes loading its cloud account.
+    if (auth.authError) { setError(auth.authError); setMode('signin') }
+  }, [auth.authError])
   useEffect(() => {
     if (!menuOpen) return
     const outside = (event: PointerEvent) => { if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false) }
@@ -88,7 +90,7 @@ export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest,
     document.body.style.overflow = 'hidden'
     dialogRef.current?.focus()
     const keyboard = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { event.preventDefault(); setMode(null); setPassword(''); setConfirmPassword(''); setShowPassword(false); setError(''); return }
+      if (event.key === 'Escape') { event.preventDefault(); closeModal(); return }
       if (event.key !== 'Tab') return
       const nodes = dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), a[href], [tabindex="0"]')
       if (!nodes?.length) { event.preventDefault(); return }
@@ -166,7 +168,7 @@ export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest,
       <div className="account-dialog-mark">{mode === 'confirm' || mode === 'reset-sent' ? <Mail size={24} /> : mode === 'reset' || mode === 'recovery' ? <KeyRound size={24} /> : mode === 'logout' ? <LogOut size={24} /> : <UserRound size={24} />}</div>
       <span className="account-eyebrow">MANGO FX · YOUR OWN JOURNEY</span>
       <h2 id={titleId}>{title}</h2>
-      <p className="account-dialog-description">{mode === 'signin' ? 'ログインして、前回の続きから始めましょう。' : mode === 'signup' ? '取引の経験を、自分のアカウントに残せます。' : mode === 'reset' ? '登録したメールアドレスに、再設定用リンクを送ります。' : mode === 'recovery' ? '他のサービスと異なるパスワードを設定しましょう。' : mode === 'confirm' ? '確認メール内のリンクを開くと、メールアドレスの確認が完了します。' : mode === 'reset-sent' ? '登録されているメールアドレスの場合、再設定用メールが届きます。メール内のリンクから設定してください。' : '未同期の練習データは、この端末に残ります。別の端末からは、最後に同期した時点のデータを利用できます。'}</p>
+      <p className="account-dialog-description">{mode === 'signin' ? 'ログインして、前回の続きから始めましょう。' : mode === 'signup' ? '取引の経験を、自分のアカウントに残せます。' : mode === 'reset' ? '登録したメールアドレスに、再設定用リンクを送ります。' : mode === 'recovery' ? '他のサービスと異なるパスワードを設定しましょう。' : mode === 'confirm' ? '確認メールが届きましたら、メール内のリンクを開いてメールアドレスの確認を完了してください。' : mode === 'reset-sent' ? '登録されているメールアドレスの場合、再設定用メールが届きます。メール内のリンクから設定してください。' : '未同期の練習データは、この端末に残ります。別の端末からは、最後に同期した時点のデータを利用できます。'}</p>
       {(mode === 'signin' || mode === 'signup') && <><button type="button" className="account-google-button" onClick={() => { void google() }} disabled={busy}><GoogleMark />Googleで{mode === 'signup' ? '登録 / ログイン' : 'ログイン'}</button><div className="account-divider"><span />またはメールアドレスで<span /></div><div className="account-mode-tabs"><button type="button" className={mode === 'signin' ? 'active' : ''} onClick={() => openMode('signin')} disabled={busy}>ログイン</button><button type="button" className={mode === 'signup' ? 'active' : ''} onClick={() => openMode('signup')} disabled={busy || !auth.emailRegistrationReady} title={auth.emailRegistrationReady ? undefined : 'メールでの新規登録は準備中です'}>新規登録</button></div>{!auth.emailRegistrationReady && <p className="account-email-readiness" role="note">メールでの新規登録とパスワード再設定は準備中です。Googleでログインできます。</p>}</>}
       {isForm && <form className="account-form" onSubmit={event => { void submit(event) }} noValidate>
         {mode === 'signup' && <label htmlFor={nameId}>表示名 <span>任意</span><input id={nameId} type="text" autoComplete="nickname" maxLength={40} placeholder="例：マンゴー" value={displayName} onChange={event => setDisplayName(event.target.value)} disabled={busy} /></label>}
@@ -179,7 +181,7 @@ export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest,
         {mode === 'reset' && <button type="button" className="account-text-link" onClick={() => openMode('signin')} disabled={busy}>ログインに戻る</button>}
       </form>}
       {!isForm && error && <div className="account-error" role="alert">{error}</div>}
-      {(mode === 'confirm' || mode === 'reset-sent') && <><div className="account-email-destination"><Mail size={16} />{email}</div><p className="account-email-help">メールが見つからない場合は、迷惑メールフォルダもご確認ください。リンクの期限が切れた場合は、もう一度お手続きください。</p><button type="button" className="account-primary" onClick={() => openMode('signin')}>ログインに戻る<ArrowRight size={16} /></button></>}
+      {(mode === 'confirm' || mode === 'reset-sent') && <><div className="account-email-destination"><Mail size={16} />{email}</div><p className="account-email-help">{mode === 'confirm' ? 'メールが届かない場合は、迷惑メールフォルダや入力したアドレスをご確認ください。同じメールアドレスで登録済みの場合は、Googleまたはメールアドレスでのログインをお試しください。' : 'メールが見つからない場合は、迷惑メールフォルダもご確認ください。リンクの期限が切れた場合は、もう一度お手続きください。'}</p><button type="button" className="account-primary" onClick={() => openMode('signin')}>ログインに戻る<ArrowRight size={16} /></button></>}
       {mode === 'logout' && <div className="account-logout-actions"><button type="button" className="account-secondary" onClick={closeModal} disabled={busy}>このまま続ける</button><button type="button" className="account-primary" onClick={() => { void signOut(true) }} disabled={busy}>{busy ? <LoaderCircle size={15} className="account-spinner" /> : <LogOut size={15} />}ログアウトする</button></div>}
       <p className="account-privacy-note"><ShieldCheck size={13} />{mode === 'logout' ? 'このブラウザのログインだけを終了します。' : '仮想資金の練習口座です。実際の資金は使いません。'}</p>
       {(mode === 'signin' || mode === 'signup') && <button type="button" className="account-guest-link" onClick={closeModal} disabled={busy}>ゲストのまま続ける<Check size={13} /></button>}
