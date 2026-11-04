@@ -1,21 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ getSession: vi.fn(), rpc: vi.fn(), getPublicUrl: vi.fn(), download: vi.fn(), upload: vi.fn(), remove: vi.fn() }))
+const mocks = vi.hoisted(() => ({ getSession: vi.fn(), rpc: vi.fn(), getPublicUrl: vi.fn(), download: vi.fn(), upload: vi.fn(), remove: vi.fn(), from: vi.fn() }))
 vi.mock('./supabase', () => ({ supabase: {
   auth: { getSession: mocks.getSession },
   rpc: mocks.rpc,
-  storage: { from: () => ({ getPublicUrl: mocks.getPublicUrl, download: mocks.download, upload: mocks.upload, remove: mocks.remove }) },
+  storage: { from: (bucket: string) => mocks.from(bucket) },
 } }))
 
-import { downloadPhoto, loadPhotoShop, parseShopSnapshot, previewUrl, purchasePhoto, reviewShopOrder, SetupRequiredError, updatePhoto, uploadPhoto } from './photoShop'
+import { downloadPhoto, loadPhotoShop, parseShopSnapshot, previewUrl, productImageUrl, purchasePhoto, reviewShopOrder, SetupRequiredError, updatePhoto, uploadPhoto } from './photoShop'
 import type { ShopPhoto, ShopSnapshot } from './photoShop'
 
 const alice = '11111111-1111-4111-8111-111111111111'
 const bob = '22222222-2222-4222-8222-222222222222'
 const id = '33333333-3333-4333-8333-333333333333'
 const orderId = '44444444-4444-4444-8444-444444444444'
-const photo: ShopPhoto = { id, title: '夕方の空', description: '撮影した写真', price: 500, published: true, kind: 'photo', saleMode: 'direct', lottery: null, fileType: null, stockRemaining: null, deliveryStatus: 'not_purchased', orderId: null, orderSource: null, previewPath: `${id}/preview.jpg`, purchased: false, paidPrice: null, purchasedAt: null, revision: 1, createdAt: '2026-11-04T02:00:00Z' }
-const snapshot: ShopSnapshot = { role: null, realizedProfit: 1200, spentProfit: 200, availableProfit: 1000, photos: [photo], orders: [], fileProductsReady: true, lotteriesReady: false }
+const photo: ShopPhoto = { id, title: '夕方の空', description: '撮影した写真', price: 500, published: true, kind: 'photo', saleMode: 'direct', lottery: null, fileType: null, stockRemaining: null, deliveryStatus: 'not_purchased', orderId: null, orderSource: null, previewPath: `${id}/preview.jpg`, productImagePath: null, purchased: false, paidPrice: null, purchasedAt: null, revision: 1, createdAt: '2026-11-04T02:00:00Z' }
+const snapshot: ShopSnapshot = { role: null, realizedProfit: 1200, spentProfit: 200, availableProfit: 1000, photos: [photo], orders: [], fileProductsReady: true, lotteriesReady: false, productImagesReady: false }
 const codeFile: ShopPhoto = { ...photo, title: 'コードファイル', kind: 'file', fileType: 'txt', previewPath: null, stockRemaining: 1 }
 const pendingFile: ShopPhoto = { ...codeFile, stockRemaining: 0, purchased: true, paidPrice: 500, purchasedAt: '2026-11-04T02:20:00Z', orderId, orderSource: 'purchase', deliveryStatus: 'pending' }
 const session = (uid: string | null) => ({ data: { session: uid ? { user: { id: uid } } : null }, error: null })
@@ -27,7 +27,8 @@ beforeEach(() => {
   mocks.rpc.mockImplementation(() => rpcResult())
   mocks.upload.mockResolvedValue({ data: { path: 'uploaded' }, error: null })
   mocks.remove.mockResolvedValue({ data: [], error: null })
-  mocks.getPublicUrl.mockImplementation((path: string) => ({ data: { publicUrl: `https://project.supabase.co/storage/v1/object/public/photo-previews/${path}` } }))
+  mocks.from.mockImplementation((bucket: string) => ({ getPublicUrl: (path: string) => mocks.getPublicUrl(path, bucket), download: mocks.download, upload: mocks.upload, remove: mocks.remove }))
+  mocks.getPublicUrl.mockImplementation((path: string, bucket: string) => ({ data: { publicUrl: `https://project.supabase.co/storage/v1/object/public/${bucket}/${path}` } }))
 })
 
 afterEach(() => { vi.unstubAllGlobals() })
@@ -262,5 +263,146 @@ describe('file products and compatibility', () => {
     const order = { id: orderId, productId: id, productTitle: '商品', buyerLabel: 'buyer@example.test', paidPrice: 500, status: 'pending', purchasedAt: '2026-11-04T02:20:00Z', reviewedAt: null }
     expect(() => parseShopSnapshot({ ...snapshot, orders: [order] })).toThrow()
     expect(parseShopSnapshot({ ...snapshot, role: 'admin', orders: [order] }).orders).toHaveLength(1)
+  })
+})
+
+describe('public product photos with private code files', () => {
+  const imageId = '55555555-5555-4555-8555-555555555555'
+  const imagePath = `${id}/${imageId}.jpg`
+  const picturedFile: ShopPhoto = { ...codeFile, productImagePath: imagePath }
+  const fields = { title: 'コード商品', description: '商品の説明', price: 500, published: true }
+  const code = () => new File(['EXAMPLE-NOT-REDEEMABLE\n'], 'reward.txt', { type: 'text/plain' })
+  const mockImageShop = (product = codeFile) => {
+    const data: ShopSnapshot = { ...snapshot, role: 'admin', productImagesReady: true, photos: [product] }
+    mocks.rpc.mockImplementation((name: string, params?: Record<string, unknown>) => {
+      if (name !== 'save_shop_product_with_image') return rpcResult(data)
+      return rpcResult({ ...data, photos: [{ ...product, id: params!.p_product_id, productImagePath: params!.p_product_image_path }] })
+    })
+  }
+
+  it('normalizes older catalogs without enabling product-image writes', () => {
+    const { productImagePath: _path, ...oldFile } = codeFile
+    const { productImagesReady: _ready, ...oldShop } = snapshot
+    const parsed = parseShopSnapshot({ ...oldShop, photos: [oldFile] })
+    expect(parsed.productImagesReady).toBe(false)
+    expect(parsed.photos[0].productImagePath).toBeNull()
+    expect(parseShopSnapshot({ ...snapshot, productImagesReady: true, photos: [picturedFile] }).photos[0]).toEqual(picturedFile)
+    expect(() => parseShopSnapshot({ ...snapshot, productImagesReady: 'true' })).toThrow()
+  })
+
+  it('accepts only same-product public JPG paths, including for lottery products', () => {
+    const lottery = { ...picturedFile, saleMode: 'lottery', lottery: { entryCost: 500, winRateBps: 1000, enabled: true, revision: 1 } }
+    expect(parseShopSnapshot({ ...snapshot, photos: [lottery] }).photos[0].productImagePath).toBe(imagePath)
+    for (const path of [`${bob}/${imageId}.jpg`, `${id}/original.txt`, `${id}/../${imageId}.jpg`, `https://elsewhere.example/${imageId}.jpg`, `${imagePath}\n`, `${imagePath}\r`, `${imagePath}\u0000`, `${id}/${imageId}.png`]) {
+      expect(() => parseShopSnapshot({ ...snapshot, photos: [{ ...codeFile, productImagePath: path }] })).toThrow()
+      expect(productImageUrl({ ...codeFile, productImagePath: path })).toBe('')
+    }
+    expect(() => parseShopSnapshot({ ...snapshot, photos: [{ ...photo, productImagePath: imagePath }] })).toThrow()
+    expect(productImageUrl(picturedFile)).toContain(`/shop-product-images/${imagePath}`)
+    expect(productImageUrl(codeFile)).toBe('')
+    expect(productImageUrl(photo)).toBe('')
+    expect(previewUrl(picturedFile)).toBe('')
+    expect(mocks.getPublicUrl).toHaveBeenCalledOnce()
+  })
+
+  it('uploads code privately and a separately generated display photo publicly in one metadata save', async () => {
+    mockImageShop()
+    const image = prepareImageDecoding(), file = code()
+    const result = await uploadPhoto({ ...fields, kind: 'file', file, productImage: image }, alice)
+    expect(mocks.from.mock.calls.map(([bucket]) => bucket)).toEqual(['shop-files', 'shop-product-images'])
+    expect(mocks.upload).toHaveBeenCalledTimes(2)
+    const [privatePath, privateBody, privateOptions] = mocks.upload.mock.calls[0]
+    const [publicPath, publicBody, publicOptions] = mocks.upload.mock.calls[1]
+    expect(privatePath).toMatch(/\/original\.txt$/)
+    expect(await (privateBody as Blob).text()).toBe(await file.text())
+    expect(privateOptions.contentType).toBe('text/plain')
+    expect(await (publicBody as Blob).text()).toBe('preview')
+    expect(publicOptions).toMatchObject({ contentType: 'image/jpeg', upsert: false })
+    expect(publicPath).toHaveLength(77)
+    expect(publicPath.split('/')[0]).toBe(privatePath.split('/')[0])
+    expect(mocks.rpc).toHaveBeenCalledWith('save_shop_product_with_image', expect.objectContaining({ p_kind: 'file', p_preview_path: null, p_original_path: privatePath, p_file_ext: 'txt', p_product_image_path: publicPath, p_expected_revision: null }))
+    expect(mocks.rpc).not.toHaveBeenCalledWith('save_shop_product', expect.anything())
+    expect(result.photos[0].productImagePath).toBe(publicPath)
+    expect(mocks.download).not.toHaveBeenCalled()
+  })
+
+  it('rejects unavailable or disguised display photos before uploading either file', async () => {
+    const image = prepareImageDecoding()
+    mocks.rpc.mockImplementation(() => rpcResult({ ...snapshot, role: 'admin' }))
+    await expect(uploadPhoto({ ...fields, kind: 'file', file: code(), productImage: image }, alice)).rejects.toBeInstanceOf(SetupRequiredError)
+    mockImageShop()
+    const disguised = new File(['<svg>not a photo</svg>'], 'cover.jpg', { type: 'image/jpeg' })
+    await expect(uploadPhoto({ ...fields, kind: 'file', file: code(), productImage: disguised }, alice)).rejects.toMatchObject({ code: 'invalid_photo' })
+    expect(mocks.upload).not.toHaveBeenCalled()
+  })
+
+  it('cleans up the private original if the public photo upload fails before metadata is sent', async () => {
+    mockImageShop()
+    const image = prepareImageDecoding()
+    mocks.upload.mockResolvedValueOnce({ data: { path: 'uploaded' }, error: null }).mockResolvedValueOnce({ data: null, error: { message: 'Upload unavailable' } })
+    await expect(uploadPhoto({ ...fields, kind: 'file', file: code(), productImage: image }, alice)).rejects.toMatchObject({ code: 'connection' })
+    expect(mocks.rpc).not.toHaveBeenCalledWith('save_shop_product_with_image', expect.anything())
+    expect(mocks.remove).toHaveBeenCalledWith([expect.stringMatching(/\/original\.txt$/)])
+    expect(mocks.from).toHaveBeenLastCalledWith('shop-files')
+  })
+
+  it('keeps both uploads and never retries a different write after an uncertain metadata result', async () => {
+    const image = prepareImageDecoding()
+    mocks.rpc.mockImplementation((name: string) => name === 'get_reward_shop' ? rpcResult({ ...snapshot, role: 'admin', productImagesReady: true })
+      : { abortSignal: vi.fn().mockRejectedValue(new DOMException('Lost response', 'TimeoutError')) })
+    await expect(uploadPhoto({ ...fields, kind: 'file', file: code(), productImage: image }, alice)).rejects.toMatchObject({ code: 'connection' })
+    expect(mocks.upload).toHaveBeenCalledTimes(2)
+    expect(mocks.remove).not.toHaveBeenCalled()
+    expect(mocks.rpc).not.toHaveBeenCalledWith('save_shop_product', expect.anything())
+  })
+
+  it('replaces an existing product photo without uploading or changing its private code file', async () => {
+    mockImageShop(picturedFile)
+    const image = prepareImageDecoding()
+    const result = await updatePhoto(picturedFile, { ...fields, productImage: image }, alice)
+    expect(mocks.from).toHaveBeenCalledOnce()
+    expect(mocks.from).toHaveBeenCalledWith('shop-product-images')
+    expect(mocks.upload).toHaveBeenCalledOnce()
+    const path = mocks.upload.mock.calls[0][0]
+    expect(path).not.toBe(imagePath)
+    expect(path).toHaveLength(77)
+    expect(mocks.rpc).toHaveBeenCalledWith('save_shop_product_with_image', expect.objectContaining({ p_product_id: id, p_product_image_path: path, p_expected_revision: 1, p_original_path: null, p_preview_path: null, p_file_ext: null }))
+    expect(result.photos[0].productImagePath).toBe(path)
+    expect(mocks.remove).not.toHaveBeenCalled()
+  })
+
+  it('preserves the photo on normal edits and removes it only on an explicit request', async () => {
+    mockImageShop(picturedFile)
+    await updatePhoto(picturedFile, fields, alice)
+    expect(mocks.rpc).toHaveBeenLastCalledWith('save_shop_product_with_image', expect.objectContaining({ p_product_image_path: imagePath }))
+    const result = await updatePhoto(picturedFile, { ...fields, removeProductImage: true }, alice)
+    expect(mocks.rpc).toHaveBeenLastCalledWith('save_shop_product_with_image', expect.objectContaining({ p_product_image_path: null }))
+    expect(result.photos[0].productImagePath).toBeNull()
+    expect(mocks.upload).not.toHaveBeenCalled()
+    expect(mocks.remove).not.toHaveBeenCalled()
+  })
+
+  it('blocks image changes on old schema and conflicting add/remove requests', async () => {
+    const image = prepareImageDecoding()
+    mocks.rpc.mockImplementation(() => rpcResult({ ...snapshot, role: 'admin', photos: [codeFile] }))
+    await expect(updatePhoto(codeFile, { ...fields, productImage: image }, alice)).rejects.toBeInstanceOf(SetupRequiredError)
+    await expect(updatePhoto(codeFile, { ...fields, removeProductImage: true }, alice)).rejects.toBeInstanceOf(SetupRequiredError)
+    mockImageShop()
+    await expect(updatePhoto(codeFile, { ...fields, productImage: image, removeProductImage: true }, alice)).rejects.toMatchObject({ code: 'invalid_photo' })
+    expect(mocks.upload).not.toHaveBeenCalled()
+    expect(mocks.rpc).not.toHaveBeenCalledWith('save_shop_product_with_image', expect.anything())
+  })
+
+  it('pins image edits to the active account and keeps uploaded images after CAS or lost responses', async () => {
+    mockImageShop(picturedFile)
+    const image = prepareImageDecoding()
+    mocks.getSession.mockResolvedValueOnce(session(alice)).mockResolvedValueOnce(session(alice)).mockResolvedValueOnce(session(alice)).mockResolvedValueOnce(session(bob))
+    await expect(updatePhoto(picturedFile, { ...fields, productImage: image }, alice)).rejects.toMatchObject({ code: 'session_changed' })
+    expect(mocks.rpc).not.toHaveBeenCalledWith('save_shop_product_with_image', expect.anything())
+    mocks.rpc.mockImplementation((name: string) => name === 'get_reward_shop' ? rpcResult({ ...snapshot, role: 'admin', productImagesReady: true, photos: [picturedFile] })
+      : rpcResult(null, { message: 'SHOP_PHOTO_CONFLICT: private detail' }))
+    await expect(updatePhoto(picturedFile, { ...fields, productImage: image }, alice)).rejects.toMatchObject({ code: 'conflict' })
+    expect(mocks.remove).not.toHaveBeenCalled()
+    expect(mocks.rpc).not.toHaveBeenCalledWith('save_shop_product', expect.anything())
   })
 })

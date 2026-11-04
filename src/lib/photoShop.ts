@@ -17,6 +17,7 @@ export interface ShopPhoto {
   lottery: ShopLotteryConfig | null
   fileType: ShopFileType | null
   previewPath: string | null
+  productImagePath: string | null
   stockRemaining: 0 | 1 | null
   deliveryStatus: ShopDeliveryStatus
   orderId: string | null
@@ -48,9 +49,11 @@ export interface ShopSnapshot {
   orders: ShopOrder[]
   fileProductsReady: boolean
   lotteriesReady: boolean
+  productImagesReady: boolean
 }
 export interface ShopPhotoFields { title: string; description: string; price: number; published: boolean }
-export interface UploadPhotoInput extends ShopPhotoFields { file: File; kind?: ShopProductKind }
+export interface UploadPhotoInput extends ShopPhotoFields { file: File; kind?: ShopProductKind; productImage?: File | null }
+export interface UpdatePhotoInput extends ShopPhotoFields { productImage?: File | null; removeProductImage?: boolean }
 export const PHOTO_FILE_MAX_BYTES = 15 * 1024 * 1024
 export const PHOTO_MAX_PRICE = 100_000_000
 
@@ -71,7 +74,10 @@ const connectionError = () => new PhotoShopError('connection', 'ショップに�
 const identityError = () => new PhotoShopError('session_changed', 'ログイン中のアカウントが変わりました。ショップを開き直してください。')
 const invalidResponse = () => new PhotoShopError('connection', 'ショップの情報を読み込めませんでした。もう一度お試しください。')
 const fileSetupError = () => new SetupRequiredError('ファイル商品の販売準備がまだ完了していません。管理者向けの設定を完了してからお試しください。')
+const productImageSetupError = () => new SetupRequiredError('商品写真の設定がまだ完了していません。設定を完了してから、もう一度お試しください。')
 const adminError = () => new PhotoShopError('admin_required', '商品を管理できるのは、管理者に指定されたアカウントだけです。')
+const validProductImagePath = (path: unknown, productId: string): path is string => typeof path === 'string' && path.length === 77 && productId.length === 36 && UUID.test(productId)
+  && new RegExp(`^${productId}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.jpg$`).test(path)
 
 function client() {
   if (!supabase) throw new SetupRequiredError()
@@ -104,6 +110,7 @@ function fail(error: { code?: string; message?: string; statusCode?: string | nu
     ['SHOP_FILES_IMMUTABLE', 'invalid_photo', '投稿済みの商品ファイルは変更できません。新しい商品として登録してください。'],
     ['SHOP_FILES_MISSING', 'invalid_photo', 'アップロードしたファイルを確認できませんでした。選び直してお試しください。'],
     ['SHOP_INVALID_PHOTO', 'invalid_photo', 'タイトル・価格・商品ファイルを確認してください。'],
+    ['SHOP_INVALID_PRODUCT_IMAGE', 'invalid_photo', '商品写真を選び直してください。JPEG・PNG・WebPに対応しています。'],
     ['SHOP_INVALID_PRODUCT', 'invalid_photo', 'タイトル・価格・商品ファイルを確認してください。'],
     ['SHOP_PURCHASE_REQUIRED', 'purchase_required', 'このファイルをダウンロードするには、購入が必要です。'],
     ['SHOP_LOTTERY_REQUIRED', 'lottery_required', 'この商品はくじの対象です。くじの画面からお試しください。'],
@@ -131,6 +138,8 @@ function parsePhoto(value: unknown, legacy: boolean): ShopPhoto {
     || typeof p.published !== 'boolean' || typeof p.purchased !== 'boolean'
     || !Number.isSafeInteger(p.revision) || Number(p.revision) < 1 || !validDate(p.createdAt)) throw invalidResponse()
   const kind = legacy ? 'photo' : p.kind
+  const productImagePath = legacy ? null : p.productImagePath ?? null
+  if (productImagePath !== null && (kind !== 'file' || !validProductImagePath(productImagePath, p.id))) throw invalidResponse()
   const saleMode = legacy ? 'direct' : p.saleMode ?? 'direct'
   if (saleMode !== 'direct' && saleMode !== 'lottery') throw invalidResponse()
   let lottery: ShopLotteryConfig | null = null
@@ -163,7 +172,7 @@ function parsePhoto(value: unknown, legacy: boolean): ShopPhoto {
   const receiptPriceValid = kind === 'file' && orderSource === 'lottery' ? validMoney(p.paidPrice) && p.paidPrice <= PHOTO_MAX_PRICE : validPrice(p.paidPrice)
   if (hasReceipt ? !receiptPriceValid || !validDate(p.purchasedAt) : p.paidPrice !== null || p.purchasedAt !== null) throw invalidResponse()
   return { id: p.id, title: p.title, description: p.description, price: p.price, published: p.published, kind, saleMode, lottery,
-    fileType: fileType as ShopFileType | null, previewPath: p.previewPath as string | null,
+    fileType: fileType as ShopFileType | null, previewPath: p.previewPath as string | null, productImagePath,
     stockRemaining: stockRemaining as 0 | 1 | null, deliveryStatus: deliveryStatus as ShopDeliveryStatus,
     orderId: orderId as string | null, orderSource, purchased: p.purchased, paidPrice: p.paidPrice as number | null,
     purchasedAt: p.purchasedAt as string | null, revision: p.revision as number, createdAt: p.createdAt }
@@ -194,9 +203,11 @@ export function parseShopSnapshot(value: unknown, legacy = false): ShopSnapshot 
   if (!legacy && (!Array.isArray(s.orders) || s.orders.length > 10000)) throw invalidResponse()
   const orders = legacy ? [] : (s.orders as unknown[]).map(parseOrder)
   if (!legacy && s.lotteriesReady !== undefined && typeof s.lotteriesReady !== 'boolean') throw invalidResponse()
+  if (!legacy && s.productImagesReady !== undefined && typeof s.productImagesReady !== 'boolean') throw invalidResponse()
   if (new Set(orders.map(order => order.id)).size !== orders.length || (s.role === null && orders.length)) throw invalidResponse()
   return { role: s.role as ShopRole, realizedProfit: s.realizedProfit, spentProfit: s.spentProfit,
-    availableProfit: s.availableProfit, photos, orders, fileProductsReady: !legacy, lotteriesReady: !legacy && s.lotteriesReady === true }
+    availableProfit: s.availableProfit, photos, orders, fileProductsReady: !legacy, lotteriesReady: !legacy && s.lotteriesReady === true,
+    productImagesReady: !legacy && s.productImagesReady === true }
 }
 
 async function rpc(name: string, params: Record<string, unknown>, expectedUserId: string | null) {
@@ -260,6 +271,12 @@ export function previewUrl(photo: ShopPhoto): string {
   return client().storage.from('photo-previews').getPublicUrl(photo.previewPath).data.publicUrl
 }
 
+/** Public display photography is separate from the privately delivered file. */
+export function productImageUrl(product: ShopPhoto): string {
+  if (product.kind !== 'file' || !validProductImagePath(product.productImagePath, product.id)) return ''
+  return client().storage.from('shop-product-images').getPublicUrl(product.productImagePath).data.publicUrl
+}
+
 type ImageFormat = { contentType: 'image/jpeg' | 'image/png' | 'image/webp'; extension: 'jpg' | 'png' | 'webp' }
 async function imageFormat(file: File): Promise<ImageFormat> {
   if (!file.size || file.size > PHOTO_FILE_MAX_BYTES) throw new PhotoShopError('invalid_photo', '写真は15MB以下のJPEG・PNG・WebPファイルを選んでください。')
@@ -304,6 +321,13 @@ async function createPreview(file: Blob): Promise<Blob> {
   }
 }
 
+async function createProductImage(file: File): Promise<Blob> {
+  const format = await imageFormat(file)
+  const image = await createPreview(new Blob([file], { type: format.contentType }))
+  if (!image.size || image.size > 2 * 1024 * 1024) throw new PhotoShopError('invalid_photo', '商品写真を小さくしてから、もう一度選んでください。')
+  return image
+}
+
 type DocumentFormat = { contentType: 'text/plain' | 'application/pdf' | 'application/zip'; extension: ShopFileType }
 async function documentFormat(file: File): Promise<DocumentFormat> {
   if (!file || typeof file.size !== 'number' || !file.size || file.size > PHOTO_FILE_MAX_BYTES) throw new PhotoShopError('invalid_photo', '商品ファイルは15MB以下のTXT・PDF・ZIPを選んでください。')
@@ -328,17 +352,21 @@ async function documentFormat(file: File): Promise<DocumentFormat> {
 export async function uploadPhoto(input: UploadPhotoInput, expectedUserId: string): Promise<ShopSnapshot> {
   const fields = photoFields(input), kind = input.kind ?? 'photo'
   if (kind !== 'photo' && kind !== 'file') throw new PhotoShopError('invalid_photo', '商品の種類を確認してください。')
+  if (kind !== 'file' && input.productImage) throw new PhotoShopError('invalid_photo', '商品写真を追加できるのは、コード・ファイル商品です。')
   await assertIdentity(expectedUserId)
   const access = await loadPhotoShop(expectedUserId)
   if (!access.role) throw adminError()
   if (kind === 'file' && !access.fileProductsReady) throw fileSetupError()
+  if (input.productImage && !access.productImagesReady) throw productImageSetupError()
   const format = kind === 'file' ? await documentFormat(input.file) : await imageFormat(input.file)
   // Canonical MIME is derived from the file, never from an editable File.type.
   const original = new Blob([input.file], { type: format.contentType })
   const preview = kind === 'photo' ? await createPreview(original) : null
+  const productImage = kind === 'file' && input.productImage ? await createProductImage(input.productImage) : null
   await assertIdentity(expectedUserId)
   const id = crypto.randomUUID(), originalPath = `${id}/original.${format.extension}`
   const previewPath = kind === 'photo' ? `${id}/preview.jpg` : null
+  const productImagePath = productImage ? `${id}/${crypto.randomUUID()}.jpg` : null
   const bucket = kind === 'file' ? 'shop-files' : 'photo-originals'
   const uploaded: { bucket: string; path: string }[] = []
   let metadataAttempted = false
@@ -352,7 +380,15 @@ export async function uploadPhoto(input: UploadPhotoInput, expectedUserId: strin
       if (previewResult.error) fail(previewResult.error)
       uploaded.push({ bucket: 'photo-previews', path: previewPath })
     }
+    if (productImage && productImagePath) {
+      const imageResult = await client().storage.from('shop-product-images').upload(productImagePath, productImage, { upsert: false, contentType: 'image/jpeg', cacheControl: '3600' })
+      if (imageResult.error) fail(imageResult.error)
+      uploaded.push({ bucket: 'shop-product-images', path: productImagePath })
+    }
     metadataAttempted = true
+    if (kind === 'file' && access.productImagesReady) {
+      return await snapshotRpc('save_shop_product_with_image', { p_product_id: id, p_kind: kind, p_title: fields.title, p_description: fields.description, p_price: fields.price, p_published: fields.published, p_preview_path: null, p_original_path: originalPath, p_file_ext: format.extension, p_expected_revision: null, p_expected_user_id: expectedUserId, p_product_image_path: productImagePath }, expectedUserId, true)
+    }
     return access.fileProductsReady
       ? await snapshotRpc('save_shop_product', { p_product_id: id, p_kind: kind, p_title: fields.title, p_description: fields.description, p_price: fields.price, p_published: fields.published, p_preview_path: previewPath, p_original_path: originalPath, p_file_ext: kind === 'file' ? format.extension : null, p_expected_revision: null, p_expected_user_id: expectedUserId }, expectedUserId, true)
       : await snapshotRpc('save_shop_photo', { p_photo_id: id, p_title: fields.title, p_description: fields.description, p_price: fields.price, p_published: fields.published, p_preview_path: previewPath, p_original_path: originalPath, p_expected_revision: null, p_expected_user_id: expectedUserId }, expectedUserId, false)
@@ -366,12 +402,39 @@ export async function uploadPhoto(input: UploadPhotoInput, expectedUserId: strin
   }
 }
 
-export async function updatePhoto(photo: ShopPhoto, input: ShopPhotoFields, expectedUserId: string): Promise<ShopSnapshot> {
+export async function updatePhoto(photo: ShopPhoto, input: UpdatePhotoInput, expectedUserId: string): Promise<ShopSnapshot> {
   const fields = photoFields(input)
   if (!UUID.test(photo.id) || !Number.isSafeInteger(photo.revision) || photo.revision < 1) throw new PhotoShopError('invalid_photo', '更新する商品を確認してください。')
+  if ((input.productImage || input.removeProductImage) && photo.kind !== 'file') throw new PhotoShopError('invalid_photo', '商品写真を追加できるのは、コード・ファイル商品です。')
+  if (input.productImage && input.removeProductImage) throw new PhotoShopError('invalid_photo', '商品写真の変更と削除は、どちらか一方を選んでください。')
   const access = await loadPhotoShop(expectedUserId)
   if (!access.role) throw adminError()
   if (photo.kind === 'file' && !access.fileProductsReady) throw fileSetupError()
+  if ((input.productImage || input.removeProductImage) && !access.productImagesReady) throw productImageSetupError()
+  if (photo.kind === 'file' && access.productImagesReady) {
+    const image = input.productImage ? await createProductImage(input.productImage) : null
+    let imagePath = input.removeProductImage ? null : photo.productImagePath
+    if (image) imagePath = `${photo.id}/${crypto.randomUUID()}.jpg`
+    if (imagePath !== null && !validProductImagePath(imagePath, photo.id)) throw new PhotoShopError('invalid_photo', '商品の写真を確認してから、もう一度お試しください。')
+    let metadataAttempted = false
+    let uploaded = false
+    try {
+      await assertIdentity(expectedUserId)
+      if (image && imagePath) {
+        const result = await client().storage.from('shop-product-images').upload(imagePath, image, { upsert: false, contentType: 'image/jpeg', cacheControl: '3600' })
+        if (result.error) fail(result.error)
+        uploaded = true
+      }
+      metadataAttempted = true
+      return await snapshotRpc('save_shop_product_with_image', { p_product_id: photo.id, p_kind: photo.kind, p_title: fields.title, p_description: fields.description, p_price: fields.price, p_published: fields.published, p_preview_path: null, p_original_path: null, p_file_ext: null, p_expected_revision: photo.revision, p_expected_user_id: expectedUserId, p_product_image_path: imagePath }, expectedUserId, true)
+    } catch (error) {
+      if (uploaded && imagePath && !metadataAttempted) {
+        try { await assertIdentity(expectedUserId); await client().storage.from('shop-product-images').remove([imagePath]) } catch { /* Preserve uncertain or referenced images. */ }
+      }
+      if (error instanceof PhotoShopError) throw error
+      throw connectionError()
+    }
+  }
   return access.fileProductsReady
     ? snapshotRpc('save_shop_product', { p_product_id: photo.id, p_kind: photo.kind, p_title: fields.title, p_description: fields.description, p_price: fields.price, p_published: fields.published, p_preview_path: null, p_original_path: null, p_file_ext: null, p_expected_revision: photo.revision, p_expected_user_id: expectedUserId }, expectedUserId, true)
     : snapshotRpc('save_shop_photo', { p_photo_id: photo.id, p_title: fields.title, p_description: fields.description, p_price: fields.price, p_published: fields.published, p_preview_path: null, p_original_path: null, p_expected_revision: photo.revision, p_expected_user_id: expectedUserId }, expectedUserId, false)

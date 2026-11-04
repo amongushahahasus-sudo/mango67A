@@ -21,6 +21,8 @@ type Product = {
   saleMode: 'direct' | 'lottery'
   fileType: 'txt' | 'pdf' | 'zip' | null
   previewPath: string | null
+  productImagePath?: string | null
+  lottery?: { entryCost: number; winRateBps: number; enabled: boolean; revision: number } | null
   originalPath: string
   revision: number
   createdAt: string
@@ -75,18 +77,20 @@ async function backend(page: Page) {
       order: string
       decision: string
     }[],
-    publicFileRequests: [] as string[], fileApiMissing: false,
+    publicFileRequests: [] as string[], publicImageRequests: [] as string[], fileApiMissing: false,
+    productImagesReady: true,
+    metadataRequests: [] as Record<string, unknown>[],
   }
   const role = (id: string | null) => id === developer ? 'developer' : null
   const active = (id: string) => server.orders.find(order => order.productId === id && order.status !== 'rejected')
   const snapshot = (id: string | null) => {
     const realizedProfit = id ? Math.max(0, Math.floor((server.rows[id]?.state.account.balance ?? 1000000) - 1000000)) : 0
     const spentProfit = id ? Object.values(server.photoPurchases[id] ?? {}).reduce((sum, n) => sum + n, 0) + server.orders.filter(order => order.userId === id && order.status !== 'rejected').reduce((sum, order) => sum + order.paidPrice, 0) : 0
-    return { role: role(id), realizedProfit, spentProfit, availableProfit: Math.max(0, realizedProfit - spentProfit), photos: server.products.filter(product => product.published || role(id) || server.orders.some(order => order.userId === id && order.productId === product.id) || Boolean(id && server.photoPurchases[id]?.[product.id])).map(product => {
+    return { role: role(id), realizedProfit, spentProfit, availableProfit: Math.max(0, realizedProfit - spentProfit), productImagesReady: server.productImagesReady, lotteriesReady: true, photos: server.products.filter(product => product.published || role(id) || server.orders.some(order => order.userId === id && order.productId === product.id) || Boolean(id && server.photoPurchases[id]?.[product.id])).map(product => {
         const order = server.orders.filter(order => order.productId === product.id && order.userId === id).at(-1)
         const paid = id ? server.photoPurchases[id]?.[product.id] : undefined
         const { originalPath: _private, ...fields } = product
-        return { ...fields, lottery: null, purchased: product.kind === 'photo' ? paid !== undefined : Boolean(order && order.status !== 'rejected'), paidPrice: product.kind === 'photo' ? paid ?? null : order?.paidPrice ?? null, purchasedAt: product.kind === 'photo' ? (paid !== undefined ? stamp : null) : order?.purchasedAt ?? null, stockRemaining: product.kind === 'photo' ? null : active(product.id) ? 0 : 1, deliveryStatus: product.kind === 'photo' ? (paid !== undefined ? 'approved' : 'not_purchased') : order?.status ?? 'not_purchased', orderId: product.kind === 'photo' ? null : order?.id ?? null, orderSource: product.kind === 'file' && order ? 'purchase' : null }
+        return { ...fields, productImagePath: product.productImagePath ?? null, lottery: product.lottery ?? null, purchased: product.kind === 'photo' ? paid !== undefined : Boolean(order && order.status !== 'rejected'), paidPrice: product.kind === 'photo' ? paid ?? null : order?.paidPrice ?? null, purchasedAt: product.kind === 'photo' ? (paid !== undefined ? stamp : null) : order?.purchasedAt ?? null, stockRemaining: product.kind === 'photo' ? null : active(product.id) ? 0 : 1, deliveryStatus: product.kind === 'photo' ? (paid !== undefined ? 'approved' : 'not_purchased') : order?.status ?? 'not_purchased', orderId: product.kind === 'photo' ? null : order?.id ?? null, orderSource: product.kind === 'file' && order ? 'purchase' : null }
       }), orders: role(id) ? server.orders.map(order => ({ id: order.id, productId: order.productId, productTitle: server.products.find(p => p.id === order.productId)!.title, buyerLabel: users[order.userId]?.email ?? '削除済みアカウント', paidPrice: order.paidPrice, status: order.status, source: 'purchase', purchasedAt: order.purchasedAt, reviewedAt: order.reviewedAt })) : [] }
   }
   await page.context().route('https://testproject.supabase.co/**', async (route) => {
@@ -206,21 +210,28 @@ async function backend(page: Page) {
       order.reviewedAt = new Date().toISOString()
       await json(snapshot(id))
     }
-    else if (path === '/rest/v1/rpc/save_shop_product') {
+    else if (path === '/rest/v1/rpc/save_shop_product' || path === '/rest/v1/rpc/save_shop_product_with_image') {
       if (!id || id !== developer || body.p_expected_user_id !== id) {
         await fail('SHOP_ADMIN_REQUIRED', 403, '42501')
         return
       }
       const product = server.products.find(p => p.id === body.p_product_id)
+      const withImage = path.endsWith('/save_shop_product_with_image')
+      if (withImage && !server.productImagesReady) {
+        await fail('Function not found', 404, 'PGRST202')
+        return
+      }
+      server.metadataRequests.push({ ...body })
       if (product) {
         if (body.p_expected_revision !== product.revision) {
           await fail('SHOP_PHOTO_CONFLICT')
           return
         }
         Object.assign(product, { title: body.p_title, description: body.p_description, price: body.p_price, published: body.p_published, revision: product.revision + 1 })
+        if (withImage) product.productImagePath = body.p_product_image_path as string | null
       }
       else
-        server.products.unshift({ id: String(body.p_product_id), title: String(body.p_title), description: String(body.p_description), price: Number(body.p_price), published: Boolean(body.p_published), kind: body.p_kind as Product['kind'], saleMode: 'direct', fileType: body.p_kind === 'file' ? body.p_file_ext as Product['fileType'] : null, previewPath: body.p_kind === 'file' ? null : String(body.p_preview_path), originalPath: String(body.p_original_path), revision: 1, createdAt: new Date().toISOString() })
+        server.products.unshift({ id: String(body.p_product_id), title: String(body.p_title), description: String(body.p_description), price: Number(body.p_price), published: Boolean(body.p_published), kind: body.p_kind as Product['kind'], saleMode: 'direct', fileType: body.p_kind === 'file' ? body.p_file_ext as Product['fileType'] : null, previewPath: body.p_kind === 'file' ? null : String(body.p_preview_path), productImagePath: withImage ? body.p_product_image_path as string | null : null, originalPath: String(body.p_original_path), revision: 1, createdAt: new Date().toISOString() })
       await json(snapshot(id))
     }
     else if (path === '/rest/v1/rpc/get_shop_product_download') {
@@ -239,6 +250,12 @@ async function backend(page: Page) {
     }
     else if (path.startsWith('/storage/v1/object/public/photo-previews/'))
       await route.fulfill({ status: 200, contentType: 'image/png', body: photoBytes, headers: { 'access-control-allow-origin': '*' } })
+    else if (path.startsWith('/storage/v1/object/public/shop-product-images/')) {
+      server.publicImageRequests.push(path)
+      const uploadPath = path.replace('/object/public/', '/object/')
+      const uploaded = server.uploads.find(upload => upload.path === uploadPath)
+      await route.fulfill({ status: 200, contentType: uploaded?.type ?? 'image/png', body: uploaded?.bytes ?? photoBytes, headers: { 'access-control-allow-origin': '*' } })
+    }
     else if (path.startsWith('/storage/v1/object/public/shop-files/')) {
       server.publicFileRequests.push(path)
       await fail('Private bucket', 403, '42501')
@@ -375,11 +392,13 @@ test('a developer uploads code data only to private file storage', async ({ page
 })
 test('files remain private and usable on a narrow screen in both display modes', async ({ page }) => {
   const server = await backend(page)
+  server.products.find(product => product.id === fileId)!.productImagePath = `${fileId}/dddddddd-dddd-4ddd-8ddd-dddddddddddd.jpg`
   await page.setViewportSize({ width: 320, height: 800 })
   await page.goto('/')
   await page.getByRole('button', { name: 'メニューを開く', exact: true }).click()
   await openShop(page)
   await expect(card(page)).toBeVisible()
+  await expect(card(page).locator('.photo-preview-button canvas')).toHaveCount(1)
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
   await page.getByRole('button', { name: /^表示モード（/ }).click()
   await page.getByRole('button', { name: 'ダーク', exact: true }).click()
@@ -388,4 +407,108 @@ test('files remain private and usable on a narrow screen in both display modes',
   expect(server.downloads).toHaveLength(0)
   expect(server.publicFileRequests).toHaveLength(0)
   await page.screenshot({ path: '.local/shop-files-mobile.png', fullPage: true })
+})
+
+test('a code-file product uses a separate public product photo while its delivery file stays private', async ({ page }) => {
+  const server = await backend(page)
+  const image = await readFile('public/icons/mango-fx-192.png')
+  await page.goto('/')
+  await login(page, developer)
+  await page.getByRole('button', { name: 'ショップ管理', exact: true }).click()
+  await page.getByRole('combobox', { name: '商品の種類', exact: true }).selectOption('file')
+  await page.getByLabel('販売するファイル', { exact: true }).setInputFiles({ name: 'sample-code.txt', mimeType: 'text/plain', buffer: Buffer.from(code) })
+  await page.getByLabel('商品写真（任意）', { exact: true }).setInputFiles({ name: 'gift-photo.png', mimeType: 'image/png', buffer: image })
+  await expect(page.getByText('商品写真は公開されます。コードが写っていない画像を選んでください。', { exact: true })).toBeVisible()
+  await page.getByLabel('タイトル', { exact: true }).fill('写真付きファイル商品')
+  await page.getByLabel('価格（仮想円）', { exact: true }).fill('700')
+  await page.getByLabel('ショップに公開する', { exact: true }).check()
+  await page.getByRole('button', { name: '商品を登録する', exact: true }).click()
+  const productCard = card(page, '写真付きファイル商品')
+  await expect(productCard).toBeVisible()
+  await expect(productCard.locator('.photo-preview-button canvas')).toHaveCount(1)
+  const product = server.products.find(product => product.title === '写真付きファイル商品')!
+  expect(product.productImagePath).toMatch(new RegExp(`^${product.id}/[0-9a-f-]{36}\\.jpg$`))
+  expect(product.originalPath).toBe(`${product.id}/original.txt`)
+  expect(product.previewPath).toBeNull()
+  const privateUpload = server.uploads.find(upload => upload.path.includes('/shop-files/'))!
+  const imageUpload = server.uploads.find(upload => upload.path.includes('/shop-product-images/'))!
+  expect(server.uploads).toHaveLength(2)
+  expect(privateUpload.bytes.toString()).toBe(code)
+  expect(imageUpload.type).toBe('image/jpeg')
+  expect([...imageUpload.bytes.subarray(0, 3)]).toEqual([0xff, 0xd8, 0xff])
+  expect(imageUpload.bytes.toString()).not.toContain(code.trim())
+  expect(server.metadataRequests.at(-1)).toMatchObject({ p_preview_path: null, p_original_path: product.originalPath, p_product_image_path: product.productImagePath })
+  await logout(page, developer)
+  await openShop(page)
+  await expect(productCard.locator('.photo-preview-button canvas')).toHaveCount(1)
+  await productCard.getByRole('button', { name: /の詳細を見る$/ }).click()
+  await expect(page.getByRole('dialog').locator('canvas')).toHaveCount(1)
+  await expect(page.getByRole('dialog')).toContainText('購入申請後、管理者が確認してからお渡しします。')
+  await expect(page.locator('body')).not.toContainText(code.trim())
+  expect(server.publicImageRequests.length).toBeGreaterThan(0)
+  expect(server.publicFileRequests).toHaveLength(0)
+  expect(server.downloads).toHaveLength(0)
+  await page.screenshot({ path: '.local/shop-product-image-detail.png', fullPage: true })
+})
+
+test('an existing reserved lottery file can add, replace and remove its photo without changing the delivered code or order', async ({ page }) => {
+  const server = await backend(page)
+  const product = server.products.find(product => product.id === fileId)!
+  product.productImagePath = null
+  product.saleMode = 'lottery'
+  product.lottery = { entryCost: 500, winRateBps: 1000, enabled: true, revision: 3 }
+  const originalPath = product.originalPath
+  const lottery = { ...product.lottery }
+  server.orders.push({ id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', userId: alice, productId: fileId, paidPrice: 500, status: 'pending', purchasedAt: stamp, reviewedAt: null })
+  const image = await readFile('public/icons/mango-fx-192.png')
+  await page.goto('/')
+  await login(page, developer)
+  await page.getByRole('button', { name: 'ショップ管理', exact: true }).click()
+  let previousPath: string | null = null
+  for (const filename of ['first.png', 'replacement.png']) {
+    await card(page).getByRole('button', { name: '編集する', exact: true }).click()
+    await page.getByLabel('商品写真（任意）', { exact: true }).setInputFiles({ name: filename, mimeType: 'image/png', buffer: image })
+    await page.getByRole('button', { name: '変更を保存する', exact: true }).click()
+    await expect.poll(() => product.productImagePath).not.toBe(previousPath)
+    await expect(page.getByRole('button', { name: '商品を登録する', exact: true })).toBeVisible()
+    expect(product.productImagePath).toMatch(new RegExp(`^${fileId}/[0-9a-f-]{36}\\.jpg$`))
+    previousPath = product.productImagePath!
+  }
+  await card(page).getByRole('button', { name: '編集する', exact: true }).click()
+  await page.getByRole('button', { name: '商品写真を外す', exact: true }).click()
+  await page.getByRole('button', { name: '変更を保存する', exact: true }).click()
+  await expect.poll(() => product.productImagePath).toBeNull()
+  await expect(card(page).locator('.photo-preview-button canvas')).toHaveCount(0)
+  expect(product.originalPath).toBe(originalPath)
+  expect(product.previewPath).toBeNull()
+  expect(product.saleMode).toBe('lottery')
+  expect(product.lottery).toEqual(lottery)
+  expect(product.revision).toBe(4)
+  expect(server.orders).toHaveLength(1)
+  expect(server.orders[0].status).toBe('pending')
+  expect(server.uploads).toHaveLength(2)
+  expect(server.uploads.every(upload => upload.path.includes('/shop-product-images/'))).toBe(true)
+  expect(server.metadataRequests).toHaveLength(3)
+  expect(server.metadataRequests.every(request => request.p_original_path === null && request.p_preview_path === null)).toBe(true)
+  expect(server.downloads).toHaveLength(0)
+  await expect(card(page)).toContainText('当選確率 10%')
+})
+
+test('an older project can still register private files while optional product photos wait for setup', async ({ page }) => {
+  const server = await backend(page)
+  server.productImagesReady = false
+  await page.goto('/')
+  await login(page, developer)
+  await page.getByRole('button', { name: 'ショップ管理', exact: true }).click()
+  await page.getByRole('combobox', { name: '商品の種類', exact: true }).selectOption('file')
+  await expect(page.getByLabel('商品写真（任意）', { exact: true })).toBeDisabled()
+  await expect(page.getByText('商品写真の設定待ちです。設定が完了すると写真を追加できます。', { exact: true })).toBeVisible()
+  await page.getByLabel('販売するファイル', { exact: true }).setInputFiles({ name: 'sample-code.txt', mimeType: 'text/plain', buffer: Buffer.from(code) })
+  await page.getByLabel('タイトル', { exact: true }).fill('写真設定前のファイル')
+  await page.getByRole('button', { name: '商品を登録する', exact: true }).click()
+  await expect(card(page, '写真設定前のファイル')).toBeVisible()
+  expect(server.uploads).toHaveLength(1)
+  expect(server.uploads[0].path).toContain('/shop-files/')
+  expect(server.uploads[0].bytes.toString()).toBe(code)
+  expect(server.products.find(product => product.title === '写真設定前のファイル')!.productImagePath).toBeNull()
 })
