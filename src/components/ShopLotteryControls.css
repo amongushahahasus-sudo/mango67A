@@ -1,0 +1,34 @@
+.shop-lottery-panel { min-width: 0; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
+.shop-lottery-heading { display: flex; align-items: center; gap: 8px; color: var(--orange-ink); }
+.shop-lottery-heading h3 { color: var(--text); font-size: 14px; line-height: 1.8; font-weight: 600; }
+.shop-lottery-terms { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin: 16px 0; padding: 15px; border: 1px solid var(--border); border-radius: 8px; background: linear-gradient(115deg, var(--surface-soft), var(--surface-warm)); }
+.shop-lottery-terms > div { min-width: 0; }
+.shop-lottery-terms dt { font-size: 10px; line-height: 1.8; color: var(--muted); }
+.shop-lottery-terms dd { margin: 5px 0 0; font-size: 17px; font-weight: 600; line-height: 1.8; color: var(--text); overflow-wrap: anywhere; }
+.shop-lottery-disclosure { margin: 12px 0 7px; color: var(--orange-ink); font-size: 12px; font-weight: 600; line-height: 1.9; }
+.shop-lottery-note { margin: 8px 0 12px; color: var(--muted); font-size: 10px; line-height: 1.95; overflow-wrap: anywhere; }
+.shop-lottery-result { margin: 15px 0; padding: 15px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-soft); }
+.shop-lottery-result > strong { display: block; color: var(--text); font-size: 14px; line-height: 1.9; }
+.shop-lottery-result > p { margin-top: 5px; color: var(--muted); font-size: 11px; line-height: 1.9; }
+.shop-lottery-result-win { background: var(--surface-warm); }
+.shop-lottery-result-win > strong { color: var(--orange-ink); }
+.shop-lottery-retry-note { margin: 12px 0; padding: 11px 12px; color: var(--orange-ink); font-size: 10px; line-height: 1.9; background: var(--surface-warm); border: 1px solid var(--border); border-radius: 6px; overflow-wrap: anywhere; }
+.shop-lottery-panel .shop-lottery-draw { width: 100%; margin-top: 10px; min-height: 43px; white-space: normal; overflow-wrap: anywhere; }
+.shop-lottery-panel .shop-lottery-error, .shop-lottery-form .shop-lottery-error { margin: 12px 0 0; }
+.shop-lottery-settings { min-width: 0; margin-top: 15px; border-top: 1px solid var(--border); padding-top: 12px; }
+.shop-lottery-toggle { display: flex; align-items: center; gap: 7px; width: 100%; min-width: 0; min-height: 36px; padding: 7px 0; font-size: 11px; line-height: 1.8; text-align: left; color: var(--lime); }
+.shop-lottery-toggle > svg { flex-shrink: 0; }
+.shop-lottery-toggle > svg:last-child { margin-left: auto; transition: transform .15s; }
+.shop-lottery-toggle[aria-expanded=true] > svg:last-child { transform: rotate(180deg); }
+.shop-lottery-toggle:disabled { opacity: .55; cursor: not-allowed; }
+.shop-lottery-form { display: flex; flex-direction: column; min-width: 0; gap: 13px; padding-top: 8px; }
+.shop-lottery-form > .shop-lottery-note, .shop-lottery-form > .shop-lottery-retry-note { margin: 0; }
+.shop-lottery-form > label { display: flex; flex-direction: column; gap: 7px; min-width: 0; color: var(--text); font-size: 10px; line-height: 1.8; }
+.shop-lottery-form > label > input:not([type=checkbox]) { min-width: 0; width: 100%; padding: 10px 11px; background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 6px; font: inherit; font-size: 12px; }
+.shop-lottery-form > label.shop-lottery-enabled { flex-direction: row; align-items: center; min-height: 35px; gap: 9px; cursor: pointer; }
+.shop-lottery-enabled > input { width: 15px; height: 15px; margin: 0; flex-shrink: 0; accent-color: var(--lime); }
+.shop-lottery-form > .photo-primary { width: 100%; min-height: 39px; }
+.shop-lottery-saved { color: var(--lime); font-size: 11px; line-height: 1.85; overflow-wrap: anywhere; }
+.shop-lottery-panel button:focus-visible, .shop-lottery-settings button:focus-visible, .shop-lottery-settings input:focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; }
+@media (max-width: 400px) { .shop-lottery-terms { grid-template-columns: 1fr; gap: 10px; padding: 12px; } .shop-lottery-terms dd { font-size: 16px; } }
+@media (prefers-reduced-motion: reduce) { .shop-lottery-toggle > svg:last-child { transition: none; } }

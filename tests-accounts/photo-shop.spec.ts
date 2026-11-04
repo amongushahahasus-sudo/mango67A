@@ -2,7 +2,6 @@ import { test, expect } from '@playwright/test'
 import type { Page, Route } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createSavedState } from '../src/lib/practiceState'
-import type { ShopPhoto, ShopSnapshot } from '../src/lib/photoShop'
 
 const alice = '11111111-1111-4111-8111-111111111111'
 const developer = '33333333-3333-4333-8333-333333333333'
@@ -15,7 +14,8 @@ const users = {
 }
 type UserId = keyof typeof users
 type PracticeRow = { state: ReturnType<typeof createSavedState>; revision: number; updated_at: string }
-type CatalogPhoto = Omit<ShopPhoto, 'purchased' | 'paidPrice' | 'purchasedAt'> & { originalPath: string }
+type CatalogPhoto = { id:string; title:string; description:string; price:number; published:boolean; previewPath:string; originalPath:string; revision:number; createdAt:string }
+type LegacySnapshot = { role:'developer'|'admin'|null; realizedProfit:number; spentProfit:number; availableProfit:number; photos:(Omit<CatalogPhoto,'originalPath'>&{purchased:boolean;paidPrice:number|null;purchasedAt:string|null})[] }
 type Purchase = { price: number; at: string }
 
 function practice(balance: number): PracticeRow {
@@ -48,7 +48,7 @@ async function backend(page: Page) {
     saves: [] as { user: string; body: Record<string, unknown> }[],
     setupMissing: false,
   }
-  const snapshot = (id: string | null): ShopSnapshot => {
+  const snapshot = (id: string | null): LegacySnapshot => {
     const role = id ? server.roles[id] ?? null : null
     const owned = id ? server.purchases[id] ?? {} : {}
     const realizedProfit = id ? Math.max(0, Math.floor((server.rows[id]?.state.account.balance ?? 1_000_000) - 1_000_000)) : 0
@@ -81,7 +81,8 @@ async function backend(page: Page) {
       if (previous ? body.p_expected_revision !== previous.revision : body.p_expected_revision !== null) { await fail('ACCOUNT_CONFLICT'); return }
       server.rows[id] = { state: body.p_state as PracticeRow['state'], revision: (previous?.revision ?? 0) + 1, updated_at: time }
       await json([server.rows[id]])
-    } else if (path.startsWith('/rest/v1/rpc/') && server.setupMissing) await fail('Function not found', 404, 'PGRST202')
+    } else if (path === '/rest/v1/rpc/get_reward_shop') await fail('Function not found', 404, 'PGRST202')
+    else if (path.startsWith('/rest/v1/rpc/') && server.setupMissing) await fail('Function not found', 404, 'PGRST202')
     else if (path === '/rest/v1/rpc/get_photo_shop') {
       if ((body.p_expected_user_id ?? null) !== id) await fail('ACCOUNT_USER_CHANGED', 403, '42501')
       else await json(snapshot(id))
@@ -146,7 +147,7 @@ async function logout(page: Page, name = 'Alice') {
   await page.getByRole('menuitem', { name: 'ログアウト', exact: true }).click()
   await expect(page.getByRole('button', { name: 'ログイン', exact: true })).toBeVisible({ timeout: 15000 })
 }
-async function openShop(page: Page) { await page.getByRole('button', { name: '写真ショップ', exact: true }).click() }
+async function openShop(page: Page) { await page.getByRole('button', { name: 'ショップ', exact: true }).click() }
 
 async function largeFixtureImage(page: Page): Promise<Buffer> {
   const bytes = await page.evaluate(async () => {
@@ -167,7 +168,7 @@ test('guests can browse previews and cannot access developer controls', async ({
   await page.goto('/')
   await openShop(page)
   await expect(page.getByRole('heading', { name: '朝の海', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: '写真の管理', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'ショップ管理', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'ログインして購入', exact: true })).toBeVisible()
   expect(server.purchaseRequests).toHaveLength(0)
   expect(server.originalRequests).toHaveLength(0)
@@ -180,10 +181,10 @@ test('a normal user buys once and keeps private downloads after logout and archi
   const server = await backend(page)
   await page.goto('/')
   await login(page)
-  await expect(page.getByRole('button', { name: '写真の管理', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'ショップ管理', exact: true })).toHaveCount(0)
   await openShop(page)
   await expect(page.getByRole('heading', { name: '朝の海', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: '写真の管理', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'ショップ管理', exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: '写真を見る', exact: true }).click()
   await page.getByRole('dialog').getByRole('button', { name: /で購入する$/ }).click()
   await expect(page.getByRole('button', { name: 'ダウンロード', exact: true })).toBeVisible()
@@ -197,7 +198,7 @@ test('a normal user buys once and keeps private downloads after logout and archi
   expect(downloadedPath).not.toBeNull()
   expect((await readFile(downloadedPath!)).equals(await readFile('public/icons/mango-fx-192.png'))).toBe(true)
   expect(server.originalRequests).toEqual([{ user: alice, path: `${photoId}/original.png` }])
-  await page.getByRole('button', { name: '写真の詳細を閉じる', exact: true }).click()
+  await page.getByRole('button', { name: '商品の詳細を閉じる', exact: true }).click()
   await expect(page.locator('.photo-wallet-main strong')).toHaveText('3,000 仮想円')
   server.photos[0].published = false
   server.photos[0].price = 3000
@@ -231,13 +232,14 @@ test('a developer uploads original and preview, then changes price and publicati
   const server = await backend(page)
   await page.goto('/')
   await login(page, 'developer@example.test')
-  await page.getByRole('button', { name: '写真の管理', exact: true }).click()
+  await page.getByRole('button', { name: 'ショップ管理', exact: true }).click()
+  await expect(page.getByRole('option', { name: 'コード・ファイル（承認後に受け渡し）', exact: true })).toHaveAttribute('disabled', '')
   const original = await largeFixtureImage(page)
   await page.getByLabel('投稿する写真', { exact: true }).setInputFiles({ name: 'large-landscape.png', mimeType: 'image/png', buffer: original })
   await page.getByLabel('タイトル', { exact: true }).fill('新しい風景')
-  await page.getByLabel('写真の説明', { exact: true }).fill('撮影した風景の写真。')
+  await page.getByLabel('商品の説明', { exact: true }).fill('撮影した風景の写真。')
   await page.getByLabel('価格（仮想円）', { exact: true }).fill('1500')
-  await page.getByRole('button', { name: '写真を投稿する', exact: true }).click()
+  await page.getByRole('button', { name: '商品を登録する', exact: true }).click()
   await expect(page.getByRole('heading', { name: '新しい風景', exact: true })).toBeVisible()
   expect(server.uploads).toHaveLength(2)
   expect(server.uploads.every(upload => upload.user === developer)).toBe(true)
@@ -258,7 +260,7 @@ test('a developer uploads original and preview, then changes price and publicati
   await page.getByLabel('価格（仮想円）', { exact: true }).fill('1750')
   await page.getByLabel('ショップに公開する', { exact: true }).uncheck()
   await page.getByRole('button', { name: '変更を保存する', exact: true }).click()
-  await expect(page.locator('.photo-success')).toContainText('写真の設定を保存しました。')
+  await expect(page.locator('.photo-success')).toContainText('商品の設定を保存しました。')
   expect(created.price).toBe(1750)
   expect(created.published).toBe(false)
   expect(created.revision).toBe(2)
@@ -282,9 +284,9 @@ test('mobile shop works in both palettes and missing setup stays closed to purch
   await page.screenshot({ path: '.local/photo-shop-mobile-dark.png', fullPage: true })
   server.setupMissing = true
   await page.getByRole('button', { name: '更新', exact: true }).click()
-  await expect(page.getByText(/写真ショップは準備中/)).toBeVisible()
+  await expect(page.getByText(/ショップは準備中/)).toBeVisible()
   await expect(page.getByRole('button', { name: '写真を見る', exact: true })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: '写真の管理', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'ショップ管理', exact: true })).toHaveCount(0)
   expect(server.purchaseRequests).toHaveLength(0)
 })
 
@@ -332,7 +334,7 @@ test.describe('touch preview interaction', () => {
     await expect(dialog.locator('img')).toHaveCount(0)
     await checkSuppression(detail)
     await page.screenshot({ path: '.local/photo-shop-protected-preview-mobile.png' })
-    await dialog.getByRole('button', { name: '写真の詳細を閉じる', exact: true }).tap()
+    await dialog.getByRole('button', { name: '商品の詳細を閉じる', exact: true }).tap()
     await expect(dialog).toHaveCount(0)
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
     expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0)
