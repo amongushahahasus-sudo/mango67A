@@ -24,7 +24,7 @@ function offlineAppShell(): Plugin {
       }
       await visit(outputDirectory)
       files.sort()
-      for (const required of ['index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png']) {
+      for (const required of ['index.html', 'manifest.webmanifest', 'icons/mango-fx-192.png', 'icons/mango-fx-512.png', 'icons/mango-fx-maskable-512.png']) {
         if (!files.includes(required)) throw new Error(`PWA app shell is missing ${required}`)
       }
       // Worker implementation changes must also use a new cache, so failed

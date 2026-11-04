@@ -7,6 +7,7 @@ import './AccountMenu.css'
 
 interface AccountMenuProps {
   syncLabel?: string
+  signInRequest?: number
   onBeforeSignOut?: () => Promise<void>
   onImportGuest?: () => void
   canImportGuest?: boolean
@@ -18,7 +19,7 @@ function GoogleMark() {
   return <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285f4" d="M21.8 12.2c0-.7-.1-1.5-.2-2.2H12v4.2h5.5a4.8 4.8 0 0 1-2.1 3.1v2.8h3.5c2-1.8 2.9-4.5 2.9-7.9Z"/><path fill="#34a853" d="M12 22c2.7 0 5-.9 6.9-2.5l-3.5-2.8c-.9.6-2 1-3.4 1-2.6 0-4.8-1.7-5.6-4.1H2.8v2.9A10 10 0 0 0 12 22Z"/><path fill="#fbbc05" d="M6.4 13.6a6 6 0 0 1 0-3.2V7.5H2.8a10 10 0 0 0 0 9l3.6-2.9Z"/><path fill="#ea4335" d="M12 6.3c1.5 0 2.8.5 3.8 1.5L19 4.6A9.8 9.8 0 0 0 12 2a10 10 0 0 0-9.2 5.5l3.6 2.9A6 6 0 0 1 12 6.3Z"/></svg>
 }
 
-export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest, canImportGuest = false }: AccountMenuProps) {
+export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest, canImportGuest = false, signInRequest = 0 }: AccountMenuProps) {
   const auth = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const [mode, setMode] = useState<Mode>(null)
@@ -33,6 +34,7 @@ export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest,
   const menuRef = useRef<HTMLDivElement>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
   const lastUserId = useRef(auth.user?.id || null)
+  const lastSignInRequest = useRef(signInRequest)
   const titleId = useId()
   const emailId = useId()
   const passwordId = useId()
@@ -44,6 +46,11 @@ export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest,
 
   const closeModal = () => { setMode(null); setPassword(''); setConfirmPassword(''); setShowPassword(false); setError('') }
   const openMode = (next: Mode) => { setMenuOpen(false); setMode(next); setPassword(''); setConfirmPassword(''); setShowPassword(false); setError('') }
+  useEffect(() => {
+    if (lastSignInRequest.current === signInRequest) return
+    lastSignInRequest.current = signInRequest
+    if (!auth.user) openMode('signin')
+  }, [signInRequest, auth.user?.id])
   useEffect(() => {
     const nextId = auth.user?.id || null
     if (lastUserId.current !== nextId) {
