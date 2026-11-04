@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowDownToLine, Check, CheckCircle2, Clock3, Coins, FileText, ImagePlus, Images, LoaderCircle, LockKeyhole, Package, Pencil, RefreshCw, ShieldCheck, ShoppingBag, Upload, X } from 'lucide-react'
-import { downloadPhoto, loadPhotoShop, PhotoShopError, previewUrl, purchasePhoto, reviewShopOrder, SetupRequiredError, updatePhoto, uploadPhoto, type ShopPhoto, type ShopRole, type ShopSnapshot } from '../lib/photoShop'
+import { downloadPhoto, loadPhotoShop, PhotoShopError, previewUrl, productImageUrl, purchasePhoto, reviewShopOrder, SetupRequiredError, updatePhoto, uploadPhoto, type ShopPhoto, type ShopRole, type ShopSnapshot } from '../lib/photoShop'
 import './PhotoShop.css'
 import ProtectedPhotoPreview from './ProtectedPhotoPreview'
 import { AdminLotterySettings, ShopLotteryPanel } from './ShopLotteryControls'
@@ -32,6 +32,9 @@ export default function PhotoShop({ mode, userId, onBeforePurchase, onRequestLog
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draft, setDraft] = useState<PhotoDraft>(emptyDraft)
   const [file, setFile] = useState<File | null>(null)
+  const [productImage, setProductImage] = useState<File | null>(null)
+  const [productImagePreview, setProductImagePreview] = useState<{ file: File; url: string } | null>(null)
+  const [removeProductImage, setRemoveProductImage] = useState(false)
   const [orderFilter, setOrderFilter] = useState<'pending' | 'all'>('pending')
   const [reviewingOrder, setReviewingOrder] = useState<{ id: string; decision: 'approve' | 'reject' } | null>(null)
   const [busyAction, setBusyAction] = useState<string | null>(null)
@@ -47,6 +50,7 @@ export default function PhotoShop({ mode, userId, onBeforePurchase, onRequestLog
   roleChanged.current = onRoleChange
   const formSection = useRef<HTMLElement>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+  const productImageInput = useRef<HTMLInputElement>(null)
   const dialog = useRef<HTMLDivElement>(null)
   const dialogTitle = useId()
   const selected = snapshot?.photos.find(photo => photo.id === selectedId) ?? null
@@ -96,11 +100,22 @@ export default function PhotoShop({ mode, userId, onBeforePurchase, onRequestLog
     active.current = true
     epoch.current += 1
     actionLock.current = false
-    setSnapshot(null); setSelectedId(null); setEditingId(null); setDraft(emptyDraft()); setFile(null)
+    setSnapshot(null); setSelectedId(null); setEditingId(null); setDraft(emptyDraft()); setFile(null); setProductImage(null); setRemoveProductImage(false)
+    if (fileInput.current) fileInput.current.value = ''
+    if (productImageInput.current) productImageInput.current.value = ''
     setActionError(''); setSuccess(''); setSyncWarning(''); setBusyAction(null); setFilter('all'); setReviewingOrder(null); setOrderFilter('pending')
     void reload()
     return () => { active.current = false; epoch.current += 1; request.current += 1 }
   }, [reload])
+
+  useEffect(() => {
+    if (!productImage) { setProductImagePreview(null); return }
+    let url: string
+    try { url = URL.createObjectURL(productImage) }
+    catch { setProductImagePreview(null); return }
+    setProductImagePreview({ file: productImage, url })
+    return () => URL.revokeObjectURL(url)
+  }, [productImage])
 
   useEffect(() => {
     if (!selected) return
@@ -155,13 +170,22 @@ export default function PhotoShop({ mode, userId, onBeforePurchase, onRequestLog
   })
 
   const resetDraft = () => {
-    setEditingId(null); setDraft(emptyDraft()); setFile(null)
+    setEditingId(null); setDraft(emptyDraft()); setFile(null); setProductImage(null); setRemoveProductImage(false)
     if (fileInput.current) fileInput.current.value = ''
+    if (productImageInput.current) productImageInput.current.value = ''
   }
   const edit = (photo: ShopPhoto) => {
     setEditingId(photo.id); setDraft({ kind: photo.kind, title: photo.title, description: photo.description, price: String(photo.price), published: photo.published })
-    setFile(null); setActionError(''); setSuccess('')
+    setFile(null); setProductImage(null); setRemoveProductImage(false); setActionError(''); setSuccess('')
+    if (fileInput.current) fileInput.current.value = ''
+    if (productImageInput.current) productImageInput.current.value = ''
     formSection.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+  const changeKind = (kind: PhotoDraft['kind']) => {
+    setDraft(value => ({ ...value, kind, published: kind === 'file' ? false : value.published }))
+    setFile(null); setProductImage(null); setRemoveProductImage(false)
+    if (fileInput.current) fileInput.current.value = ''
+    if (productImageInput.current) productImageInput.current.value = ''
   }
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -171,7 +195,9 @@ export default function PhotoShop({ mode, userId, onBeforePurchase, onRequestLog
     if (!editing && !file) { setActionError(draft.kind === 'file' ? '販売するファイルを選んでください。' : '投稿する写真を選んでください。'); return }
     const fields = { title: draft.title.trim(), description: draft.description.trim(), price, published: draft.published }
     void run(editing ? `save:${editing.id}` : 'upload', async (operationEpoch, expectedUser) => {
-      const next = editing ? await updatePhoto(editing, fields, expectedUser) : await uploadPhoto({ ...fields, kind: draft.kind, file: file! }, expectedUser)
+      const next = editing
+        ? await updatePhoto(editing, { ...fields, productImage: draft.kind === 'file' ? productImage : null, removeProductImage: draft.kind === 'file' && removeProductImage }, expectedUser)
+        : await uploadPhoto({ ...fields, kind: draft.kind, file: file!, productImage: draft.kind === 'file' ? productImage : null }, expectedUser)
       if (!current(operationEpoch, expectedUser)) return
       accept(next); resetDraft()
       setSuccess(editing ? '商品の設定を保存しました。' : fields.published ? '商品を登録して公開しました。' : '商品を下書きとして保存しました。')
@@ -193,6 +219,12 @@ export default function PhotoShop({ mode, userId, onBeforePurchase, onRequestLog
   const date = (value: string) => new Date(value).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' })
   const deliveryLabel = (photo: ShopPhoto) => photo.kind === 'photo' ? '購入済み' : photo.deliveryStatus === 'pending' ? '確認待ち' : photo.deliveryStatus === 'approved' ? '受け取り可能' : photo.deliveryStatus === 'rejected' ? '申請見送り' : photo.stockRemaining === 0 ? '受付終了' : '1点限り'
   const fileVisual = (photo: ShopPhoto, detail = false) => <div className={`shop-file-preview ${detail ? 'shop-file-dialog' : ''}`}><FileText size={detail ? 56 : 43} aria-hidden="true" /><span className="shop-file-type">{photo.fileType?.toUpperCase() ?? 'FILE'}</span><strong>コード・ファイル</strong><small>{photo.saleMode === 'lottery' ? 'くじに当選後、管理者が確認' : '管理者の承認後に受け取り'}</small></div>
+  const productVisual = (photo: ShopPhoto, detail = false) => photo.kind === 'file' && !photo.productImagePath
+    ? fileVisual(photo, detail)
+    : <ProtectedPhotoPreview className={detail ? 'photo-dialog-image' : ''} src={photo.kind === 'file' ? productImageUrl(photo) : previewUrl(photo)} title={photo.title} eager={detail} />
+  const imageEditorPreview = productImage
+    ? productImagePreview?.file === productImage ? productImagePreview.url : ''
+    : !removeProductImage && editing?.kind === 'file' ? productImageUrl(editing) : ''
   const productPrice = (photo: ShopPhoto) => photo.saleMode === 'lottery' ? photo.lottery?.entryCost ?? photo.price : photo.price
   const lotteryEpoch = epoch.current
   const acceptLotterySnapshot = (next: ShopSnapshot) => { if (current(lotteryEpoch, userId)) accept(next) }
@@ -218,14 +250,31 @@ export default function PhotoShop({ mode, userId, onBeforePurchase, onRequestLog
           </li>)}</ul> : <p className="shop-orders-empty">{orderFilter === 'pending' ? '確認待ちの申請はありません。' : '購入申請はまだありません。'}</p>}
         </section>}
         <section ref={formSection} className="photo-editor" aria-label={editing ? '商品の設定を編集' : '新しい商品を登録'}>
-          <div className="photo-editor-heading"><span className="photo-editor-icon">{editing ? <Pencil size={21} /> : <ImagePlus size={23} />}</span><div><h3>{editing ? '商品の設定を編集' : '新しい商品を登録'}</h3><p>{editing ? 'タイトル・価格・公開状態を変更できます。' : '写真や、コードを記載したファイルを商品にできます。'}</p></div>{editing && <button type="button" className="photo-text-button" onClick={resetDraft} disabled={busy}>編集をやめる</button>}</div>
+          <div className="photo-editor-heading"><span className="photo-editor-icon">{editing ? <Pencil size={21} /> : <ImagePlus size={23} />}</span><div><h3>{editing ? '商品の設定を編集' : '新しい商品を登録'}</h3><p>{editing ? editing.kind === 'file' ? 'タイトル・商品写真・価格・公開状態を変更できます。' : 'タイトル・価格・公開状態を変更できます。' : '写真や、コードを記載したファイルを商品にできます。'}</p></div>{editing && <button type="button" className="photo-text-button" onClick={resetDraft} disabled={busy}>編集をやめる</button>}</div>
           {!snapshot.fileProductsReady && <p className="photo-inline-note" role="status">ファイル商品の設定待ちです。設定が完了するまで、写真商品を管理できます。</p>}
           <form onSubmit={submit} className={`photo-editor-form ${editing ? 'photo-editor-form-edit' : ''}`}>
             {!editing && <label className="photo-file-field"><Upload size={23} /><strong>{file ? file.name : draft.kind === 'file' ? '販売するファイルを選択' : '投稿する写真を選択'}</strong><span>{draft.kind === 'file' ? 'TXT・PDF・ZIP / 15MBまで' : 'JPEG・PNG・WebP / 15MBまで'}</span><input ref={fileInput} type="file" accept={draft.kind === 'file' ? '.txt,.pdf,.zip,text/plain,application/pdf,application/zip' : 'image/jpeg,image/png,image/webp'} required disabled={busy} onChange={event => setFile(event.target.files?.[0] ?? null)} aria-label={draft.kind === 'file' ? '販売するファイル' : '投稿する写真'} /></label>}
             <div className="photo-editor-fields">
-              {!editing ? <label className="shop-kind-field">商品の種類<select value={draft.kind} disabled={busy} onChange={event => { setDraft(value => ({ ...value, kind: event.target.value as 'photo' | 'file', published: event.target.value === 'file' ? false : value.published })); setFile(null); if (fileInput.current) fileInput.current.value = '' }}><option value="photo">写真</option><option value="file" disabled={!snapshot.fileProductsReady}>コード・ファイル（承認後に受け渡し）</option></select></label> : <p className="shop-kind-summary">商品の種類：{editing.kind === 'file' ? 'コード・ファイル' : '写真'}</p>}
+              {!editing ? <label className="shop-kind-field">商品の種類<select value={draft.kind} disabled={busy} onChange={event => changeKind(event.target.value as PhotoDraft['kind'])}><option value="photo">写真</option><option value="file" disabled={!snapshot.fileProductsReady}>コード・ファイル（承認後に受け渡し）</option></select></label> : <p className="shop-kind-summary">商品の種類：{editing.kind === 'file' ? 'コード・ファイル' : '写真'}</p>}
               <label>タイトル<input type="text" value={draft.title} onChange={event => setDraft(value => ({ ...value, title: event.target.value }))} maxLength={120} required disabled={busy} placeholder="商品のタイトル" /></label><label>商品の説明<textarea value={draft.description} onChange={event => setDraft(value => ({ ...value, description: event.target.value }))} maxLength={2000} rows={3} disabled={busy} placeholder={draft.kind === 'file' ? '内容や受け取り方法など（コードそのものは書かないでください）' : '撮影した場所や、写真のストーリーなど'} /></label>
               {draft.kind === 'file' && <p className="photo-inline-note">ファイル商品は1点限りです。購入申請が入ると在庫を確保し、承認後に渡します。コードはタイトルや説明に記載せず、販売ファイルの中に入れてください。</p>}
+              {draft.kind === 'file' && <section className="shop-product-image-editor" aria-label="商品写真の設定">
+                <h4>商品写真（任意）</h4>
+                <p>商品写真は公開されます。コードが写っていない画像を選んでください。</p>
+                {!snapshot.productImagesReady && <p className="photo-inline-note" role="status">商品写真の設定待ちです。設定が完了すると写真を追加できます。</p>}
+                <div className="shop-product-image-content">
+                  <div className="shop-product-image-preview">{imageEditorPreview
+                    ? <ProtectedPhotoPreview src={imageEditorPreview} title={productImage ? '選択した商品写真' : '現在の商品写真'} eager />
+                    : <div className="shop-product-image-empty"><ImagePlus size={28} aria-hidden="true" /><span>{removeProductImage ? '商品写真を外して保存します' : '写真なしでも登録できます'}</span></div>}
+                  </div>
+                  <div className="shop-product-image-controls">
+                    <label className="shop-product-image-choice"><span>{productImage ? productImage.name : editing?.productImagePath && !removeProductImage ? '別の写真に変更する' : '商品写真を選択'}</span><input ref={productImageInput} type="file" accept="image/jpeg,image/png,image/webp" aria-label="商品写真（任意）" disabled={busy || !snapshot.productImagesReady} onChange={event => { setProductImage(event.target.files?.[0] ?? null); setRemoveProductImage(false) }} /></label>
+                    <small>JPEG・PNG・WebP / 15MBまで</small>
+                    {productImage ? <button type="button" className="photo-text-button" disabled={busy || !snapshot.productImagesReady} onClick={() => { setProductImage(null); setRemoveProductImage(false); if (productImageInput.current) productImageInput.current.value = '' }}>選択した写真を取り消す</button>
+                      : editing?.productImagePath && <button type="button" className="photo-text-button" disabled={busy || !snapshot.productImagesReady} onClick={() => setRemoveProductImage(value => !value)}>{removeProductImage ? '元の商品写真に戻す' : '商品写真を外す'}</button>}
+                  </div>
+                </div>
+              </section>}
               <div className="photo-editor-options"><label>価格（仮想円）<input type="number" min="1" max="100000000" step="1" value={draft.price} onChange={event => setDraft(value => ({ ...value, price: event.target.value }))} required disabled={busy || editing?.saleMode === 'lottery'} /></label><label className="photo-publish-check"><input type="checkbox" checked={draft.published} onChange={event => setDraft(value => ({ ...value, published: event.target.checked }))} disabled={busy} /><span>ショップに公開する</span></label></div>
             </div>
             {editing?.saleMode === 'lottery' && <p className="photo-inline-note">くじの参加費は、商品の「くじの設定」から変更してください。</p>}
@@ -236,7 +285,7 @@ export default function PhotoShop({ mode, userId, onBeforePurchase, onRequestLog
       </>}
 
       {photos.length ? <div className="photo-grid">{photos.map(photo => <article className="photo-card" key={photo.id}>
-        <button type="button" className="photo-preview-button" onContextMenu={event => event.preventDefault()} onClick={() => openDetails(photo)} aria-label={`「${photo.title}」の詳細を見る`}>{photo.kind === 'file' ? fileVisual(photo) : <ProtectedPhotoPreview src={previewUrl(photo)} title={photo.title} />}<span className="photo-preview-label">{photo.kind === 'file' ? 'ファイル商品' : 'プレビュー'}</span>{(photo.purchased || photo.deliveryStatus === 'rejected' || photo.kind === 'file') && <span className={`photo-owned-badge shop-delivery-status state-${photo.deliveryStatus}`}>{photo.deliveryStatus === 'pending' ? <Clock3 size={13} /> : photo.purchased ? <CheckCircle2 size={13} /> : <FileText size={13} />}{deliveryLabel(photo)}</span>}</button>
+        <button type="button" className="photo-preview-button" onContextMenu={event => event.preventDefault()} onClick={() => openDetails(photo)} aria-label={`「${photo.title}」の詳細を見る`}>{productVisual(photo)}<span className="photo-preview-label">{photo.kind === 'file' ? 'ファイル商品' : 'プレビュー'}</span>{(photo.purchased || photo.deliveryStatus === 'rejected' || photo.kind === 'file') && <span className={`photo-owned-badge shop-delivery-status state-${photo.deliveryStatus}`}>{photo.deliveryStatus === 'pending' ? <Clock3 size={13} /> : photo.purchased ? <CheckCircle2 size={13} /> : <FileText size={13} />}{deliveryLabel(photo)}</span>}</button>
         <div className="photo-card-body"><div className="photo-card-title"><h3>{photo.title}</h3>{!photo.published && <span className="photo-unpublished">公開終了</span>}</div><p>{photo.description || (photo.kind === 'photo' ? '開発者が撮影した、とっておきの一枚。' : '管理者の確認後に受け取れるファイル商品です。')}</p><div className="photo-card-price"><strong>{photo.saleMode === 'lottery' ? '1回 ' : ''}{amount(productPrice(photo))}</strong>{photo.saleMode === 'lottery' && photo.lottery && <span>当選確率 {(photo.lottery.winRateBps / 100).toLocaleString('ja-JP', { maximumFractionDigits: 2 })}%</span>}{photo.paidPrice !== null && <span>{photo.orderSource === 'lottery' ? 'くじの当選商品' : <>{photo.deliveryStatus === 'approved' ? '購入時' : '申請時'} {amount(photo.paidPrice)}</>}</span>}</div>
           {mode === 'admin' ? <div className="photo-card-actions"><button type="button" className="photo-secondary" disabled={busy} onClick={() => edit(photo)}><Pencil size={14} />編集する</button><button type="button" className="photo-icon-action" disabled={busy} onClick={() => download(photo)} aria-label={`「${photo.title}」の販売ファイルをダウンロード`}><ArrowDownToLine size={16} /></button></div> : canDownload(photo) ? <button type="button" className="photo-secondary photo-card-full" disabled={busy} onClick={() => download(photo)}>{busyAction === `download:${photo.id}` ? <LoaderCircle size={15} className="photo-spinner" /> : <ArrowDownToLine size={15} />}ダウンロード</button> : photo.deliveryStatus === 'pending' ? <button type="button" className="photo-secondary photo-card-full" disabled><Clock3 size={15} />管理者の確認待ち</button> : photo.kind === 'file' && photo.stockRemaining === 0 ? <button type="button" className="photo-secondary photo-card-full" disabled>受付終了</button> : <button type="button" className="photo-primary photo-card-full" disabled={busy} onClick={() => openDetails(photo)}><ShoppingBag size={15} />{photo.saleMode === 'lottery' ? 'くじを見る' : photo.kind === 'file' ? '商品を見る' : '写真を見る'}</button>}
           {mode === 'admin' && photo.kind === 'file' && userId && <AdminLotterySettings product={photo} userId={userId} ready={snapshot.lotteriesReady} onSnapshot={acceptLotterySnapshot} />}
@@ -247,8 +296,8 @@ export default function PhotoShop({ mode, userId, onBeforePurchase, onRequestLog
 
     {selected && createPortal(<div className="photo-dialog-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setSelectedId(null) }}><div ref={dialog} className="photo-dialog" role="dialog" aria-modal="true" aria-labelledby={dialogTitle} tabIndex={-1}>
       <button type="button" className="photo-dialog-close" onClick={() => setSelectedId(null)} aria-label="商品の詳細を閉じる"><X size={21} /></button>
-      {selected.kind === 'file' ? fileVisual(selected, true) : <ProtectedPhotoPreview className="photo-dialog-image" src={previewUrl(selected)} title={selected.title} eager />}
-      <div className="photo-dialog-content"><p className="photo-preview-notice">{selected.kind === 'file' ? selected.saleMode === 'lottery' ? 'ファイルの内容は公開していません。くじに当選後、管理者が確認してからお渡しします。' : 'ファイルの内容は公開していません。購入申請後、管理者が確認してからお渡しします。' : canDownload(selected) ? '表示画像はプレビューです。原本はダウンロードボタンから取得できます。' : '表示画像はプレビューです。原本は購入後にダウンロードできます。'}</p><span className="photo-eyebrow">{canDownload(selected) ? 'YOUR COLLECTION' : selected.deliveryStatus === 'pending' ? 'WAITING FOR REVIEW' : 'A REWARD FOR YOU'}</span><h2 id={dialogTitle}>{selected.title}</h2>{selected.description && <p className="photo-dialog-description">{selected.description}</p>}<div className="photo-dialog-price"><span>{selected.purchased && selected.orderSource === 'lottery' ? 'くじの当選商品' : selected.deliveryStatus === 'pending' ? '確保した仮想利益' : selected.purchased && selected.paidPrice !== null ? '購入時の価格' : selected.saleMode === 'lottery' ? '参加に使う仮想利益（1回）' : '購入に使う仮想利益'}</span><strong>{selected.purchased && selected.orderSource === 'lottery' ? '当選' : amount(selected.purchased && selected.paidPrice !== null ? selected.paidPrice : productPrice(selected))}</strong></div>
+      {productVisual(selected, true)}
+      <div className="photo-dialog-content"><p className="photo-preview-notice">{selected.kind === 'file' ? <>{selected.productImagePath && '表示画像は商品写真です。'}{selected.saleMode === 'lottery' ? 'ファイルの内容は公開していません。くじに当選後、管理者が確認してからお渡しします。' : 'ファイルの内容は公開していません。購入申請後、管理者が確認してからお渡しします。'}</> : canDownload(selected) ? '表示画像はプレビューです。原本はダウンロードボタンから取得できます。' : '表示画像はプレビューです。原本は購入後にダウンロードできます。'}</p><span className="photo-eyebrow">{canDownload(selected) ? 'YOUR COLLECTION' : selected.deliveryStatus === 'pending' ? 'WAITING FOR REVIEW' : 'A REWARD FOR YOU'}</span><h2 id={dialogTitle}>{selected.title}</h2>{selected.description && <p className="photo-dialog-description">{selected.description}</p>}<div className="photo-dialog-price"><span>{selected.purchased && selected.orderSource === 'lottery' ? 'くじの当選商品' : selected.deliveryStatus === 'pending' ? '確保した仮想利益' : selected.purchased && selected.paidPrice !== null ? '購入時の価格' : selected.saleMode === 'lottery' ? '参加に使う仮想利益（1回）' : '購入に使う仮想利益'}</span><strong>{selected.purchased && selected.orderSource === 'lottery' ? '当選' : amount(selected.purchased && selected.paidPrice !== null ? selected.paidPrice : productPrice(selected))}</strong></div>
         {actionError && <p className="photo-error" role="alert">{actionError}</p>}{success && <p className="photo-success" role="status"><CheckCircle2 size={17} />{success}</p>}
         {canDownload(selected) ? <><p className="photo-dialog-note">{mode === 'admin' ? '管理者として販売ファイルをダウンロードできます。' : selected.orderSource === 'lottery' ? '当選した商品です。販売ファイルをダウンロードできます。' : '購入済みの商品です。販売ファイルをダウンロードできます。'}</p><button type="button" className="photo-primary photo-card-full" disabled={busy} onClick={() => download(selected)}>{busy ? <LoaderCircle size={16} className="photo-spinner" /> : <ArrowDownToLine size={16} />}{selected.kind === 'photo' ? '原本をダウンロード' : 'ファイルをダウンロード'}</button></> : selected.deliveryStatus === 'pending' ? <div className="photo-inline-note" role="status"><Clock3 size={15} /> {selected.orderSource === 'lottery' && '当選しました。'}管理者の確認待ちです。承認されるとダウンロードできます。{selected.orderSource === 'lottery' ? '当選の受け渡しが見送られた場合は、当選した回の消費額が戻ります。' : '却下された場合は、確保した仮想利益が戻ります。'}</div> : selected.saleMode === 'lottery' ? <ShopLotteryPanel product={selected} userId={userId} availableProfit={snapshot?.availableProfit} onBeforeSpend={onBeforePurchase} onSnapshot={acceptLotterySnapshot} /> : !userId ? <p className="photo-dialog-note"><LockKeyhole size={15} />購入するには、画面上部からログインしてください。</p> : !selected.published ? <p className="photo-dialog-note">この商品は現在、公開を終了しています。</p> : selected.kind === 'file' && selected.stockRemaining === 0 ? <p className="photo-dialog-note">この商品の受付は終了しました。</p> : <>
           {selected.deliveryStatus === 'rejected' && <p className="photo-inline-note" role="status">前回の申請は見送られ、確保した仮想利益は戻りました。在庫があれば、もう一度申請できます。</p>}
