@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { drawPhotoWatermark } from '../lib/photoWatermark'
 import './ProtectedPhotoPreview.css'
 
 interface Props { src: string; title: string; className?: string; eager?: boolean }
@@ -19,13 +18,12 @@ export default function ProtectedPhotoPreview({ src, title, className = '', eage
       try {
         const surface = canvas.current
         if (!image.naturalWidth || !image.naturalHeight) throw new Error('Invalid preview')
-        const ratio = Math.min(1, 640 / Math.max(image.naturalWidth, image.naturalHeight))
+        const ratio = Math.min(1, 960 / Math.max(image.naturalWidth, image.naturalHeight))
         surface.width = Math.max(1, Math.round(image.naturalWidth * ratio))
         surface.height = Math.max(1, Math.round(image.naturalHeight * ratio))
         const context = surface.getContext('2d')
         if (!context) throw new Error('Preview unavailable')
         context.drawImage(image, 0, 0, surface.width, surface.height)
-        drawPhotoWatermark(context, surface.width, surface.height)
         setStatus('ready')
       } catch { setStatus('error') }
     }
@@ -42,7 +40,7 @@ export default function ProtectedPhotoPreview({ src, title, className = '', eage
     return () => { active = false; observer?.disconnect(); image.onload = null; image.onerror = null }
   }, [src, eager])
 
-  return <span ref={frame} className={`protected-photo-preview ${className}`} role="img" aria-label={`${title}（透かし入りプレビュー）`} aria-busy={status === 'loading'} data-preview-status={status} draggable={false} onContextMenu={event => event.preventDefault()} onDragStart={event => event.preventDefault()}>
+  return <span ref={frame} className={`protected-photo-preview ${className}`} role="img" aria-label={`${title}（プレビュー）`} aria-busy={status === 'loading'} data-preview-status={status} draggable={false} onContextMenu={event => event.preventDefault()} onDragStart={event => event.preventDefault()}>
     <canvas ref={canvas} width={1} height={1} aria-hidden="true" draggable={false} />
     {status !== 'ready' && <span className="protected-preview-message">{status === 'loading' ? 'プレビューを読み込み中' : 'プレビューを読み込めませんでした'}</span>}
   </span>

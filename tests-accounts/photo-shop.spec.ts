@@ -249,7 +249,7 @@ test('a developer uploads original and preview, then changes price and publicati
     bitmap.close()
     return size
   }, Array.from(server.uploads[1].bytes))
-  expect(Math.max(previewSize.width, previewSize.height)).toBe(640)
+  expect(Math.max(previewSize.width, previewSize.height)).toBe(960)
   expect(previewSize.width / previewSize.height).toBeCloseTo(4 / 3)
   const created = server.photos.find(photo => photo.title === '新しい風景')!
   expect(created.originalPath).toMatch(/^[0-9a-f-]+\/original\.png$/)
@@ -301,7 +301,20 @@ test.describe('touch preview interaction', () => {
     await card.scrollIntoViewIfNeeded()
     await expect(card).toHaveAttribute('data-preview-status', 'ready')
     await expect(page.locator('.photo-preview-button img')).toHaveCount(0)
-    expect(await card.locator('canvas').evaluate(canvas => Math.max((canvas as HTMLCanvasElement).width, (canvas as HTMLCanvasElement).height))).toBe(640)
+    expect(await card.locator('canvas').evaluate(canvas => Math.max((canvas as HTMLCanvasElement).width, (canvas as HTMLCanvasElement).height))).toBe(960)
+    expect(await card.locator('canvas').evaluate(async (element, sourceUrl) => {
+      const surface = element as HTMLCanvasElement
+      const source = await createImageBitmap(await fetch(sourceUrl).then(response => response.blob()))
+      const reference = document.createElement('canvas')
+      reference.width = surface.width; reference.height = surface.height
+      const referenceContext = reference.getContext('2d')!
+      referenceContext.drawImage(source, 0, 0, reference.width, reference.height)
+      const expected = referenceContext.getImageData(0, 0, reference.width, reference.height).data
+      const actual = surface.getContext('2d')!.getImageData(0, 0, surface.width, surface.height).data
+      source.close()
+      reference.width = 0; reference.height = 0
+      return actual.every((channel, index) => Math.abs(channel - expected[index]) <= 1)
+    }, `https://testproject.supabase.co/storage/v1/object/public/photo-previews/${photoId}/preview.jpg`)).toBe(true)
     const checkSuppression = async (target: typeof card) => {
       expect(await target.evaluate(element => {
         const menu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })

@@ -32,7 +32,7 @@ afterEach(() => { vi.unstubAllGlobals() })
 function prepareImageDecoding() {
   vi.stubGlobal('HTMLImageElement', class {})
   vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue({ width: 10, height: 10, close: vi.fn() }))
-  const context = { fillRect: vi.fn(), drawImage: vi.fn(), fillText: vi.fn(), strokeText: vi.fn(), save: vi.fn(), restore: vi.fn(), translate: vi.fn(), rotate: vi.fn() }
+  const context = { fillRect: vi.fn(), drawImage: vi.fn(), fillText: vi.fn() }
   const canvas = { width: 0, height: 0, getContext: () => context, toBlob: (callback: BlobCallback) => callback(new Blob(['preview'], { type: 'image/jpeg' })) }
   vi.stubGlobal('document', { createElement: () => canvas })
   return new File([new Uint8Array([0xff, 0xd8, 0xff])], 'photo.jpg', { type: 'image/jpeg' })
