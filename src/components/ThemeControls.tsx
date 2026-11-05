@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, Clock3, Moon, Settings2, Sun } from 'lucide-react'
+import { Check, Clock3, Layers, Moon, Settings2, Square, Sun } from 'lucide-react'
 import { isValidThemePreferences, type ThemeMode } from '../lib/themePreferences'
+import type { InterfaceStyle } from '../lib/interfaceStyle'
 import { useTheme } from '../theme/ThemeProvider'
 import './ThemeControls.css'
 
@@ -17,8 +18,25 @@ function ModeButtons({ onSelect }: { onSelect?: () => void }) {
 }
 
 function SaveWarning() {
-  const { saveFailed } = useTheme()
-  return saveFailed ? <p className="theme-save-warning" role="alert">このブラウザでは配色設定を保存できません。再読み込みすると元に戻ります。</p> : null
+  const { saveFailed, styleSaveFailed } = useTheme()
+  return <>
+    {saveFailed && <p className="theme-save-warning" role="alert">このブラウザでは配色設定を保存できません。再読み込みすると元に戻ります。</p>}
+    {styleSaveFailed && <p className="theme-save-warning" role="alert">このブラウザではデザイン設定を保存できません。現在の表示には適用されますが、再読み込みすると元に戻ります。</p>}
+  </>
+}
+
+function StyleButtons() {
+  const { interfaceStyle, updateInterfaceStyle } = useTheme()
+  const styles = [
+    { value: 'standard', label: '通常', icon: Square },
+    { value: 'glass', label: 'ガラス調', icon: Layers },
+  ] as const
+  const choose = (style: InterfaceStyle) => { updateInterfaceStyle(style) }
+  return <div className="theme-style-controls">
+    <h4>デザイン</h4>
+    <p>メニューとボタンの見た目を選べます。</p>
+    <div className="theme-style-buttons" role="group" aria-label="デザインを選択">{styles.map(({ value, label, icon: Icon }) => <button type="button" key={value} aria-pressed={interfaceStyle === value} onClick={() => choose(value)}><Icon size={17} aria-hidden="true" /><span>{label}</span>{interfaceStyle === value && <Check size={13} className="theme-mode-check" aria-hidden="true" />}</button>)}</div>
+  </div>
 }
 
 export function ThemeSwitcher({ onOpenSettings }: { onOpenSettings: () => void }) {
@@ -47,6 +65,7 @@ export function ThemeSwitcher({ onOpenSettings }: { onOpenSettings: () => void }
       <strong>表示モード</strong>
       <ModeButtons onSelect={close} />
       <p>{preferences.mode === 'auto' ? `自動切り替え中 · 現在は${current}` : `${current}モードで表示中`}</p>
+      <StyleButtons />
       <SaveWarning />
       <button type="button" className="theme-schedule-link" onClick={() => { close(); onOpenSettings() }}><Settings2 size={14} />切り替え時刻を設定</button>
     </div>}
@@ -78,7 +97,8 @@ export function ThemeSettings() {
       {!valid && <p className="theme-save-warning" role="alert">異なる2つの時刻を入力してください。直前の設定で切り替えを続けます。</p>}
       <p id="theme-schedule-note" className="theme-schedule-note">この端末の時刻で切り替わります。現在は{resolvedTheme === 'light' ? 'ライト' : 'ダーク'}モードです。</p>
     </div>}
-    <p className="theme-settings-footnote">配色と切り替え時刻は、この端末のブラウザに保存されます。</p>
+    <StyleButtons />
+    <p className="theme-settings-footnote">配色・切り替え時刻・デザインは、この端末のブラウザに保存されます。</p>
     <SaveWarning />
   </section>
 }

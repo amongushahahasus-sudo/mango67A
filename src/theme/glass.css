@@ -1,0 +1,185 @@
+/* Optional glass surfaces. Trading panels and charts retain their solid fills. */
+:root[data-interface-style="glass"] {
+  --glass-shell: rgba(250, 253, 246, .78);
+  --glass-menu: rgba(255, 254, 251, .91);
+  --glass-button: rgba(255, 255, 255, .62);
+  --glass-button-hover: rgba(255, 255, 255, .9);
+  --glass-line: rgba(92, 127, 76, .25);
+  --glass-shine: rgba(255, 255, 255, .88);
+  --glass-shadow: 0 4px 14px rgba(47, 76, 37, .08);
+  --glass-menu-shadow: 0 18px 50px rgba(42, 65, 35, .18);
+  --glass-selected: linear-gradient(135deg, rgba(220, 240, 209, .94), rgba(255, 238, 207, .9));
+  --glass-filter: blur(20px) saturate(145%);
+  --glass-green-glow: rgba(166, 205, 143, .23);
+  --glass-orange-glow: rgba(255, 199, 122, .23);
+}
+
+:root[data-interface-style="glass"]:where([data-theme="dark"]) {
+  --glass-shell: rgba(17, 25, 37, .84);
+  --glass-menu: rgba(20, 30, 43, .94);
+  --glass-button: rgba(39, 53, 69, .72);
+  --glass-button-hover: rgba(50, 67, 84, .94);
+  --glass-line: rgba(188, 211, 225, .23);
+  --glass-shine: rgba(230, 243, 255, .17);
+  --glass-shadow: 0 4px 16px rgba(0, 0, 0, .22);
+  --glass-menu-shadow: 0 20px 55px rgba(0, 0, 0, .43);
+  --glass-selected: linear-gradient(135deg, rgba(66, 86, 61, .96), rgba(42, 57, 64, .94));
+  --glass-green-glow: rgba(140, 185, 104, .1);
+  --glass-orange-glow: rgba(217, 161, 95, .08);
+}
+
+:root[data-interface-style="glass"] body {
+  background: radial-gradient(ellipse at 8% 0%, var(--glass-green-glow), transparent 43%),
+    radial-gradient(ellipse at 94% 9%, var(--glass-orange-glow), transparent 38%), var(--page);
+  background-attachment: fixed;
+}
+
+/* Blur only the header's paint layer, not the ancestor of fixed mobile menus. */
+:root[data-interface-style="glass"] .topbar {
+  position: relative;
+  z-index: 40;
+  isolation: isolate;
+  background: transparent;
+  border-bottom-color: var(--glass-line);
+}
+:root[data-interface-style="glass"] .topbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(135deg, var(--glass-shine), transparent 55%), var(--glass-shell);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+}
+:root[data-interface-style="glass"] .sidebar {
+  background: linear-gradient(160deg, var(--glass-shine), transparent 43%), var(--glass-shell);
+  border-right-color: var(--glass-line);
+  box-shadow: inset -1px 0 0 var(--glass-shine), 5px 0 20px rgba(26, 51, 33, .03);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+}
+
+:root[data-interface-style="glass"] :is(.theme-popover, .account-dropdown, .modal, .account-dialog, .welcome-dialog, .install-dialog, .photo-dialog, .pwa-update) {
+  background: linear-gradient(145deg, var(--glass-shine), transparent 42%), var(--glass-menu);
+  border-color: var(--glass-line);
+  border-radius: 22px;
+  box-shadow: inset 0 1px 0 var(--glass-shine), var(--glass-menu-shadow);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+}
+:root[data-interface-style="glass"] :is(.theme-popover, .account-dropdown) {
+  animation: glass-menu-reveal .16s cubic-bezier(.2, .7, .2, 1);
+}
+
+/* Neutral controls take a translucent fill; intent-coloured actions keep theirs. */
+:root[data-interface-style="glass"] :is(.theme-trigger, .theme-mode-buttons button, .theme-style-buttons button, .account-trigger, .account-google-button, .account-secondary, .install-trigger:not(.install-trigger-ready), .install-dismiss, .secondary-button, .photo-secondary, .photo-refresh, .photo-icon-action, .photo-filter button, .leaderboard-refresh, .welcome-back, .quantity-presets button, .speed-control button, .play-button, .icon-button) {
+  border-color: var(--glass-line);
+  border-radius: 13px;
+  background: linear-gradient(155deg, var(--glass-shine), transparent 52%), var(--glass-button);
+  box-shadow: inset 0 1px 0 var(--glass-shine), var(--glass-shadow);
+}
+:root[data-interface-style="glass"] :is(.theme-trigger, .theme-mode-buttons button, .theme-style-buttons button, .account-trigger, .account-google-button, .account-secondary, .install-trigger:not(.install-trigger-ready), .install-dismiss, .secondary-button, .photo-secondary, .photo-refresh, .photo-icon-action, .photo-filter button, .leaderboard-refresh, .welcome-back, .quantity-presets button, .speed-control button, .play-button, .icon-button):hover:not(:disabled) {
+  background: linear-gradient(155deg, var(--glass-shine), transparent 52%), var(--glass-button-hover);
+}
+:root[data-interface-style="glass"] :is(.theme-mode-buttons button, .theme-style-buttons button, .photo-filter button)[aria-pressed="true"],
+:root[data-interface-style="glass"] :is(.quantity-presets button, .speed-control button).active,
+:root[data-interface-style="glass"] .play-button.paused {
+  background: var(--glass-selected);
+  border-color: var(--lime);
+  color: var(--lime);
+  box-shadow: inset 0 1px 0 var(--glass-shine), var(--glass-shadow);
+}
+:root[data-interface-style="glass"] .theme-trigger[aria-expanded="true"] {
+  border-color: var(--lime);
+  background: var(--glass-selected);
+}
+:root[data-interface-style="glass"] .nav-button {
+  border-radius: 17px;
+  box-shadow: inset 0 1px 0 var(--glass-shine);
+}
+:root[data-interface-style="glass"] .nav-button:hover {
+  background: var(--glass-button);
+}
+:root[data-interface-style="glass"] .nav-button.active {
+  color: var(--lime);
+  background: var(--glass-selected);
+  box-shadow: inset 0 1px 0 var(--glass-shine), var(--glass-shadow);
+}
+:root[data-interface-style="glass"] .nav-button.active::before {
+  left: -7px;
+  border-radius: 8px;
+}
+:root[data-interface-style="glass"] :is(.account-mode-tabs, .order-type-tabs) {
+  border-radius: 13px;
+  background: var(--glass-button);
+}
+:root[data-interface-style="glass"] .account-mode-tabs button {
+  border-radius: 10px;
+}
+:root[data-interface-style="glass"] .account-mode-tabs button.active {
+  background: var(--glass-selected);
+  box-shadow: inset 0 1px 0 var(--glass-shine), var(--glass-shadow);
+}
+
+:root[data-interface-style="glass"] :is(.primary-button, .danger-button, .submit-order, .reset-button, .account-primary, .install-primary, .install-trigger-ready, .pwa-update-primary, .photo-primary, .welcome-primary, .workspace-start-choice button, .workspace-retry, .leaderboard-login button, .quote-button) {
+  border-radius: 15px;
+  box-shadow: inset 0 1px 0 var(--glass-shine), inset 0 -1px 0 rgba(0, 0, 0, .06), var(--glass-shadow);
+}
+:root[data-interface-style="glass"] :is(.theme-trigger, .icon-button, .account-dialog-close, .install-close, .photo-dialog-close, .welcome-close, .play-button) {
+  border-radius: 50%;
+}
+:root[data-interface-style="glass"] :is(.account-trigger, .install-trigger, .account-initial) {
+  border-radius: 999px;
+}
+:root[data-interface-style="glass"] :is(.account-dropdown > button, .theme-schedule-link, .welcome-final-options button, .shop-lottery-toggle) {
+  border-radius: 12px;
+}
+:root[data-interface-style="glass"] .account-dropdown > button:hover {
+  background: var(--glass-button);
+}
+:root[data-interface-style="glass"] button:disabled {
+  box-shadow: none;
+}
+:root[data-interface-style="glass"] button:focus-visible {
+  outline: 2px solid var(--lime);
+  outline-offset: 4px;
+}
+
+@keyframes glass-menu-reveal {
+  from { opacity: .55; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Opaque surfaces are also the fallback when the browser cannot blur a backdrop. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root[data-interface-style="glass"] {
+    --glass-shell: var(--panel);
+    --glass-menu: var(--panel);
+    --glass-button: var(--surface-soft);
+    --glass-button-hover: var(--panel);
+    --glass-selected: var(--surface-warm);
+    --glass-filter: none;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-interface-style="glass"] {
+    --glass-shell: var(--panel);
+    --glass-menu: var(--panel);
+    --glass-button: var(--surface-soft);
+    --glass-button-hover: var(--panel);
+    --glass-selected: var(--surface-warm);
+    --glass-filter: none;
+  }
+  :root[data-interface-style="glass"] body {
+    background: var(--page);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-interface-style="glass"] :is(.theme-popover, .account-dropdown) {
+    animation: none;
+  }
+  :root[data-interface-style="glass"] button {
+    transition: none;
+  }
+}
