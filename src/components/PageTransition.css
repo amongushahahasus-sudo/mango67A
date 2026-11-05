@@ -1,0 +1,4 @@
+.page-stage { width: 100%; min-width: 0; overflow: visible; }
+.page-stage[data-transitioning="true"] { overflow-x: hidden; }
+@supports (overflow: clip) { .page-stage[data-transitioning="true"] { overflow-x: clip; } }
+.page-stage > main:focus { outline: none; }
