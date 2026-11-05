@@ -24,7 +24,8 @@ export class LeaderboardError extends Error {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const ALIAS = /^トレーダー[A-F0-9]{10}$/
+const NAME_CONTROL = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/
+const EMAIL_LIKE = /[^\s@]+@[^\s@]+\.[^\s@]+/
 const MAX_PNL = 1_000_000_000_000
 const connectionError = () => new LeaderboardError('connection', 'ランキングを読み込めませんでした。通信を確認して、もう一度お試しください。')
 const sessionError = () => new LeaderboardError('session_changed', 'ログイン中のアカウントを確認できませんでした。もう一度ランキングを開いてください。')
@@ -33,12 +34,22 @@ const integer = (value: unknown): value is number => typeof value === 'number' &
 const amount = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= MAX_PNL
 const qualifies = (value: number, direction: LeaderboardDirection) => direction === 'profit' ? value > 0 : value < 0
 
+function validDisplayName(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length > 80 || value !== value.trim()
+    || NAME_CONTROL.test(value) || EMAIL_LIKE.test(value)) return false
+  const characters = Array.from(value)
+  return characters.length >= 1 && characters.length <= 40 && !characters.some(character => {
+    const code = character.charCodeAt(0)
+    return character.length === 1 && code >= 0xd800 && code <= 0xdfff
+  })
+}
+
 function parseEntry(value: unknown, direction: LeaderboardDirection, participantCount: number): LeaderboardEntry {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw connectionError()
   const e = value as Record<string, unknown>
   if (!integer(e.position) || e.position < 1 || e.position > participantCount
     || !integer(e.rank) || e.rank < 1 || e.rank > e.position
-    || typeof e.displayName !== 'string' || e.displayName.length !== 15 || !ALIAS.test(e.displayName)
+    || !validDisplayName(e.displayName)
     || !amount(e.realizedPnl) || !qualifies(e.realizedPnl, direction) || typeof e.isMe !== 'boolean') throw connectionError()
   return { position: e.position, rank: e.rank, displayName: e.displayName, realizedPnl: e.realizedPnl, isMe: e.isMe }
 }
@@ -88,16 +99,24 @@ async function assertIdentity(expectedUserId: string) {
   if (session.error || session.data.session?.user.id !== expectedUserId) throw sessionError()
 }
 
-export async function loadLeaderboard(direction: LeaderboardDirection, expectedUserId: string): Promise<LeaderboardSnapshot> {
-  if (direction !== 'profit' && direction !== 'loss') throw connectionError()
+async function requestLeaderboard(name: string, direction: LeaderboardDirection, expectedUserId: string) {
   await assertIdentity(expectedUserId)
   let response
   try {
-    response = await supabase!.rpc('get_practice_leaderboard', {
+    response = await supabase!.rpc(name, {
       p_direction: direction, p_expected_user_id: expectedUserId,
     }).abortSignal(AbortSignal.timeout(20_000))
   } catch { throw connectionError() }
   await assertIdentity(expectedUserId)
+  return response
+}
+
+export async function loadLeaderboard(direction: LeaderboardDirection, expectedUserId: string): Promise<LeaderboardSnapshot> {
+  if (direction !== 'profit' && direction !== 'loss') throw connectionError()
+  let response = await requestLeaderboard('get_practice_leaderboard_named', direction, expectedUserId)
+  // Read compatibility only: older projects still provide the pseudonym API.
+  // Authorization, transport and malformed-response failures must stay visible.
+  if (response.error?.code === 'PGRST202') response = await requestLeaderboard('get_practice_leaderboard', direction, expectedUserId)
   if (response.error) {
     if (['PGRST202', '42883', '42P01'].includes(response.error.code || '')) throw setupError()
     if (response.error.code === '42501' || response.error.code === 'PGRST301'

@@ -25,7 +25,7 @@ const pages = [
   ] },
   { icon: Gift, label: 'PRACTICE AND REWARDS', title: '経験を、ごほうびにつなげる。', description: '登録したアカウントで、練習の続きや成果を楽しめます。', points: [
     { title: '確定した仮想利益で、ショップへ。', text: '写真やファイル商品を選べます。ファイル商品は管理者の承認後に受け取ります。くじは、はずれでも仮想利益を消費します。' },
-    { title: 'ひとつのページで、＋と−のランキング。', text: '同期済みの確定損益を集計します。ランキングには自動生成のトレーダー名を使い、メールアドレスや本名は表示しません。' },
+    { title: 'ひとつのページで、＋と−のランキング。', text: '同期済みの確定損益を集計します。ランキングにはアカウントの表示名を使います。名前が未設定の場合は「トレーダー…」と表示し、メールアドレスは表示しません。' },
   ] },
   { icon: UserRound, label: 'YOUR OWN JOURNEY', title: '自分のアカウントで、続きから。', description: '会員登録すると、練習データをアカウントに保存して、別の端末でも続きを練習できます。', points: [
     { title: 'Googleまたはメールアドレスで登録。', text: 'メールで登録したら、確認メール内のリンクを開いてください。迷惑メールフォルダもご確認ください。' },
@@ -110,7 +110,7 @@ export default function WelcomeTutorial({ request = 0, onRequestRegister, onRequ
       <span className="welcome-eyebrow">{page.label}</span>
       <h2 id={titleId} ref={heading} tabIndex={-1}>{page.title}</h2><p id={descriptionId} className="welcome-description">{page.description}</p>
       <div className="welcome-points">{page.points.map(point => <div className="welcome-point" key={point.title}><CheckCircle2 size={16} aria-hidden="true" /><div><h3>{point.title}</h3><p>{point.text}</p></div></div>)}</div>
-      {last && <p className="welcome-account-note">{auth.user ? 'ログイン済みです。このまま自分の練習口座を利用できます。' : !auth.configured ? '会員登録は公開されたアプリで利用できます。この端末ではゲストとして練習できます。' : !online ? '会員登録にはインターネット接続が必要です。今はゲストとして練習できます。' : '登録者の同期済み確定損益は、自動生成のトレーダー名でランキングに表示されます。'}</p>}
+      {last && <p className="welcome-account-note">{auth.user ? 'ログイン済みです。このまま自分の練習口座を利用できます。' : !auth.configured ? '会員登録は公開されたアプリで利用できます。この端末ではゲストとして練習できます。' : !online ? '会員登録にはインターネット接続が必要です。今はゲストとして練習できます。' : '登録者の同期済み確定損益は、アカウントの表示名でランキングに表示されます。'}</p>}
     </div>
     <footer className="welcome-footer">
       <div className="welcome-pagination"><ol aria-label="案内の進み具合">{pages.map((item, index) => <li key={item.label} aria-current={index === step ? 'step' : undefined}><span className="welcome-step-dot" /><span className="welcome-sr-only">{index + 1}. {item.title}</span></li>)}</ol><p aria-live="polite">ステップ {step + 1} / {pages.length}</p></div>

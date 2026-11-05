@@ -6,6 +6,8 @@
 
 個人口座の `schema.sql` を導入済みのSupabaseプロジェクトのSQL Editorで、[leaderboards.sql](leaderboards.sql) を実行してください。最後に `leaderboards_ready: true` が返ります。既存の口座・商品・購入履歴・管理者権限は変更しません。このSQLは再実行できます。
 
+アカウント名を表示する場合は、続けて [表示名の追加設定](LEADERBOARD_NAMES.md) を適用してください。この文書にある従来APIは、更新前のアプリ向けに自動生成名の表示を継続します。
+
 ## 集計の範囲
 
 - メール確認またはGoogleログインを完了し、クラウドに練習口座を保存した登録者を集計します。

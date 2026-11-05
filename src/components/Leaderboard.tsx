@@ -70,7 +70,7 @@ export default function Leaderboard({ userId, onBeforeLoad, onRequestLogin }: Pr
     <div className="leaderboard-intro"><div><span className="leaderboard-eyebrow">LEARN TOGETHER</span><h2>練習の歩みを、みんなと。</h2><p>同期済みの確定損益（初期資金100万円からの増減）を集計します。含み損益は含みません。</p></div>
       {userId && <button type="button" className="leaderboard-refresh" disabled={loading || !scoped} onClick={() => { void reload() }}><RefreshCw size={15} className={loading || !scoped ? 'leaderboard-spinner' : ''} aria-hidden="true" />ランキングを更新</button>}
     </div>
-    <p className="leaderboard-caption">登録者はランキング用の名前で表示します。プラスは利益の大きい順、マイナスは損失の大きい順です。損益が0円の口座は表示しません。</p>
+    <p className="leaderboard-caption">登録者のアカウント名を表示します。名前が未設定の場合は「トレーダー…」を使います。プラスは利益の大きい順、マイナスは損失の大きい順です。損益が0円の口座は表示しません。</p>
     {!userId && <div className="leaderboard-login"><LockKeyhole size={22} aria-hidden="true" /><div><strong>ランキングを見るにはログインしてください。</strong><p>{onRequestLogin ? '登録したアカウントの練習結果を、ほかの参加者と見比べられます。' : 'アカウントとランキングは、公開HTTPS版のアプリで利用できます。'}</p></div>{onRequestLogin && <button type="button" onClick={onRequestLogin}>ログインする</button>}</div>}
     {scoped && warning && <p className="leaderboard-warning" role="status"><CloudOff size={16} aria-hidden="true" />{warning}</p>}
     <div className="leaderboard-columns">{directions.map(direction => {
