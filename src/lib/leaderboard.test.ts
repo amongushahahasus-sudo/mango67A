@@ -66,10 +66,28 @@ describe('leaderboard response boundaries', () => {
     expect(() => parseLeaderboard({ ...board, entries: [{ ...first, realizedPnl: 100 }, mine] }, 'profit')).toThrow()
   })
 
-  it('accepts only public pseudonyms and ignores undisplayed private properties', () => {
-    for (const displayName of ['owner@example.test', '山田太郎', 'トレーダーAAAAAAAAAA\n', 'トレーダーaaaaaaaaaa', '<script>']) {
+  it('accepts account display names, Unicode and legacy pseudonyms as plain text', () => {
+    for (const displayName of ['山田太郎', 'Mango Trader', '🥭 マンゴー', 'トレーダーAAAAAAAAAA', '<img src=x onerror=alert(1)>', '🥭'.repeat(40), '名'.repeat(40)]) {
+      expect(parseLeaderboard({ ...board, entries: [{ ...first, displayName }, mine] }, 'profit').entries[0].displayName).toBe(displayName)
+    }
+  })
+
+  it('allows separate accounts with the same display name', () => {
+    const namedMine = { ...mine, displayName: 'マンゴー' }
+    const result = parseLeaderboard({ ...board, entries: [{ ...first, displayName: 'マンゴー' }, namedMine], ownEntry: namedMine }, 'profit')
+    expect(result.entries.map(entry => entry.position)).toEqual([1, 2])
+    expect(result.entries.map(entry => entry.displayName)).toEqual(['マンゴー', 'マンゴー'])
+  })
+
+  it('rejects email-like, untrimmed, overlong or malformed display names', () => {
+    for (const displayName of ['', ' ', ' Mango', 'Mango ', 'owner@example.test', 'Mango <owner@example.test>',
+      'トレーダーAAAAAAAAAA\n', 'Mango\tTrader', 'Mango\u0085Trader', 'Mango\u2028Trader', 'Mango\u2029Trader',
+      '\ufeffMango', '\u00a0Mango', 'a'.repeat(41), '🥭'.repeat(41), 'Mango\ud83d', '\udc00Mango']) {
       expect(() => parseLeaderboard({ ...board, entries: [{ ...first, displayName }, mine] }, 'profit')).toThrow()
     }
+  })
+
+  it('ignores undisplayed private properties', () => {
     const result = parseLeaderboard({ ...board, email: 'private@example.test', entries: [{ ...first, email: 'private@example.test' }, mine] }, 'profit')
     expect(result).not.toHaveProperty('email')
     expect(result.entries[0]).not.toHaveProperty('email')
@@ -88,7 +106,7 @@ describe('account-pinned readonly requests', () => {
   it('requests a single direction using the verified account and timeout', async () => {
     const result = await loadLeaderboard('profit', alice)
     expect(result).toEqual(board)
-    expect(mocks.rpc).toHaveBeenCalledExactlyOnceWith('get_practice_leaderboard', { p_direction: 'profit', p_expected_user_id: alice })
+    expect(mocks.rpc).toHaveBeenCalledExactlyOnceWith('get_practice_leaderboard_named', { p_direction: 'profit', p_expected_user_id: alice })
     expect(mocks.getSession).toHaveBeenCalledTimes(2)
   })
 
@@ -112,9 +130,8 @@ describe('account-pinned readonly requests', () => {
       [{ code: '42501', message: 'private auth details' }, 'session_changed'],
       [{ code: 'P0001', message: 'ACCOUNT_USER_CHANGED: private details' }, 'session_changed'],
       [{ code: 'XX000', message: 'private database exception' }, 'connection']] as const) {
-      mocks.rpc.mockImplementationOnce(() => response(null, error))
+      mocks.rpc.mockImplementation(() => response(null, error))
       await expect(loadLeaderboard('profit', alice)).rejects.toMatchObject({ code })
-      mocks.rpc.mockImplementationOnce(() => response(null, error))
       await expect(loadLeaderboard('profit', alice)).rejects.not.toThrow(/private/)
     }
   })
@@ -125,5 +142,46 @@ describe('account-pinned readonly requests', () => {
     expect(mocks.rpc).toHaveBeenCalledTimes(1)
     mocks.rpc.mockImplementationOnce(() => response({ email: 'private@example.test' }))
     await expect(loadLeaderboard('profit', alice)).rejects.not.toThrow(/private/)
+  })
+
+  it('uses the legacy readonly API only when the named RPC is absent', async () => {
+    mocks.rpc.mockImplementation((name: string) => name === 'get_practice_leaderboard_named'
+      ? response(null, { code: 'PGRST202', message: 'Named API not installed' }) : response())
+    expect(await loadLeaderboard('profit', alice)).toEqual(board)
+    expect(mocks.rpc.mock.calls.map(call => call[0])).toEqual(['get_practice_leaderboard_named', 'get_practice_leaderboard'])
+    expect(mocks.getSession).toHaveBeenCalledTimes(4)
+  })
+
+  it('keeps authorization, server and malformed named responses visible instead of falling back', async () => {
+    for (const error of [{ code: '42501', message: 'private permissions' }, { code: '42883', message: 'private function detail' },
+      { code: '42P01', message: 'private table detail' }, { code: 'XX000', message: 'private backend detail' }]) {
+      mocks.rpc.mockClear().mockImplementation(() => response(null, error))
+      await expect(loadLeaderboard('profit', alice)).rejects.not.toThrow(/private/)
+      expect(mocks.rpc).toHaveBeenCalledTimes(1)
+    }
+    mocks.rpc.mockClear().mockImplementation(() => response({ ...board, entries: [{ ...first, displayName: 'member@example.test' }, mine] }))
+    await expect(loadLeaderboard('profit', alice)).rejects.toMatchObject({ code: 'connection' })
+    expect(mocks.rpc).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not request the fallback after the active account changes', async () => {
+    mocks.rpc.mockImplementation(() => response(null, { code: 'PGRST202' }))
+    mocks.getSession.mockResolvedValueOnce(session(alice)).mockResolvedValueOnce(session(bob))
+    await expect(loadLeaderboard('profit', alice)).rejects.toMatchObject({ code: 'session_changed' })
+    expect(mocks.rpc).toHaveBeenCalledTimes(1)
+
+    mocks.rpc.mockClear()
+    mocks.getSession.mockResolvedValueOnce(session(alice)).mockResolvedValueOnce(session(alice)).mockResolvedValueOnce(session(bob))
+    await expect(loadLeaderboard('profit', alice)).rejects.toMatchObject({ code: 'session_changed' })
+    expect(mocks.rpc).toHaveBeenCalledTimes(1)
+  })
+
+  it('discards a legacy response if the account switches during the fallback', async () => {
+    mocks.rpc.mockImplementation((name: string) => name === 'get_practice_leaderboard_named'
+      ? response(null, { code: 'PGRST202' }) : response())
+    mocks.getSession.mockResolvedValueOnce(session(alice)).mockResolvedValueOnce(session(alice))
+      .mockResolvedValueOnce(session(alice)).mockResolvedValueOnce(session(bob))
+    await expect(loadLeaderboard('profit', alice)).rejects.toMatchObject({ code: 'session_changed' })
+    expect(mocks.rpc).toHaveBeenCalledTimes(2)
   })
 })
