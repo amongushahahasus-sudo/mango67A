@@ -8,6 +8,7 @@ import HomeGreeting from './components/HomeGreeting'
 import PhotoShop from './components/PhotoShop'
 import Leaderboard from './components/Leaderboard'
 import WelcomeTutorial from './components/WelcomeTutorial'
+import { usePageTransition } from './hooks/usePageTransition'
 import { useAuth } from './auth/AuthProvider'
 import { loadPhotoShop, type ShopRole } from './lib/photoShop'
 import appIcon from './assets/app-icon.png?inline'
@@ -17,6 +18,7 @@ import { PAIRS, nextCandle, getQuote, accountMetrics, marginRequired, unrealized
 import type { Candle, CurrencyPair, Prices, Scenario, Side } from './lib/engine'
 
 type Modal = 'guide' | 'settings' | 'reset' | null
+type View = 'trade' | 'learn' | 'shop' | 'admin' | 'ranking'
 const pairs = Object.keys(PAIRS) as CurrencyPair[]
 const yen = (value: number, signed = false) => `${signed && value > 0 ? '+' : value < 0 ? '−' : ''}¥${Math.abs(Math.round(value)).toLocaleString('ja-JP')}`
 const rate = (value: number, pair: CurrencyPair) => value.toFixed(PAIRS[pair].decimals)
@@ -66,7 +68,9 @@ export interface AppProps {
 }
 export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onStateChange, accountControl, accountStatus, accountNotice, userLabel, onBeforePhotoPurchase, onRequestLogin, onRequestRegister }: AppProps = {}) {
   const [state, setState] = useState<SavedState>(() => initialState ?? loadSavedState(storageKey))
-  const [view, setView] = useState<'trade' | 'learn' | 'shop' | 'admin' | 'ranking'>('trade')
+  const [view, setView] = useState<View>('trade')
+  const page = useRef<HTMLElement>(null)
+  usePageTransition(page, view)
   const [tutorialRequest, setTutorialRequest] = useState(0)
   const { user } = useAuth()
   const [shopRole, setShopRole] = useState<ShopRole>(null)
@@ -92,11 +96,24 @@ export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onSt
   const [mobileNav, setMobileNav] = useState(false)
   const marketEventRef = useRef(state.marketEvent?.id)
   const activityRef = useRef<HTMLElement>(null)
+  const historyScrollTimer = useRef<number | null>(null)
   const latest = useRef(state)
   const dialogRef = useRef<HTMLDivElement>(null)
   const lastFocused = useRef<HTMLElement | null>(null)
   latest.current = state
   const notify = (text: string, type: 'success' | 'info' = 'success') => setToast({ text, type })
+  const navigateTo = (next: View, scrollToTop = true) => {
+    if (historyScrollTimer.current !== null) {
+      window.clearTimeout(historyScrollTimer.current)
+      historyScrollTimer.current = null
+    }
+    setView(next)
+    setMobileNav(false)
+    if (scrollToTop) window.scrollTo(0, 0)
+  }
+  useEffect(() => () => {
+    if (historyScrollTimer.current !== null) window.clearTimeout(historyScrollTimer.current)
+  }, [])
 
   useEffect(() => {
     try { localStorage.setItem(storageKey, JSON.stringify(state)); setSaveFailed(false) }
@@ -199,33 +216,40 @@ export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onSt
     const a = document.createElement('a'); a.href = url; a.download = 'mango-fx-trades.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
     notify('取引履歴をCSVでダウンロードしました。')
   }
-  const jumpHistory = () => { setView('trade'); setTab('history'); setMobileNav(false); setTimeout(() => activityRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50) }
+  const jumpHistory = () => {
+    navigateTo('trade', false)
+    setTab('history')
+    historyScrollTimer.current = window.setTimeout(() => {
+      historyScrollTimer.current = null
+      activityRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
+  }
 
   return <div className="app-shell">
     <aside className={`sidebar ${mobileNav ? 'mobile-open' : ''}`} aria-label="メインナビゲーション">
-      <button className="brand-icon" aria-label="MANGO FX ホーム" onClick={() => { setView('trade'); setMobileNav(false) }}><img src={appIcon} alt="" /></button>
+      <button className="brand-icon" aria-label="MANGO FX ホーム" onClick={() => navigateTo('trade')}><img src={appIcon} alt="" /></button>
       <div className="nav-main">
-        <button className={`nav-button ${view === 'trade' ? 'active' : ''}`} title="トレード" aria-label="トレード" onClick={() => { setView('trade'); setMobileNav(false) }}><LayoutDashboard size={21} /><span>トレード</span></button>
+        <button className={`nav-button ${view === 'trade' ? 'active' : ''}`} title="トレード" aria-label="トレード" onClick={() => navigateTo('trade')}><LayoutDashboard size={21} /><span>トレード</span></button>
         <button className="nav-button" title="取引履歴" aria-label="取引履歴へ移動" onClick={jumpHistory}><History size={21} /><span>取引履歴</span></button>
-        <button className={`nav-button ${view === 'learn' ? 'active' : ''}`} title="学習ガイド" aria-label="学習ガイド" onClick={() => { setView('learn'); setMobileNav(false) }}><BookOpen size={21} /><span>学ぶ</span></button>
-        <button className={`nav-button ${view === 'shop' ? 'active' : ''}`} title="ショップ" aria-label="ショップ" onClick={() => { setView('shop'); setMobileNav(false) }}><ShoppingBag size={21} /><span>ショップ</span></button>
-        <button className={`nav-button ${view === 'ranking' ? 'active' : ''}`} title="ランキング" aria-label="ランキング" onClick={() => { setView('ranking'); setMobileNav(false); window.scrollTo(0, 0) }}><Trophy size={21} /><span>ランキング</span></button>
+        <button className={`nav-button ${view === 'learn' ? 'active' : ''}`} title="学習ガイド" aria-label="学習ガイド" onClick={() => navigateTo('learn')}><BookOpen size={21} /><span>学ぶ</span></button>
+        <button className={`nav-button ${view === 'shop' ? 'active' : ''}`} title="ショップ" aria-label="ショップ" onClick={() => navigateTo('shop')}><ShoppingBag size={21} /><span>ショップ</span></button>
+        <button className={`nav-button ${view === 'ranking' ? 'active' : ''}`} title="ランキング" aria-label="ランキング" onClick={() => navigateTo('ranking')}><Trophy size={21} /><span>ランキング</span></button>
         <button className="nav-button" title="チュートリアル" aria-label="チュートリアル" onClick={() => { setModal(null); if (mobileNav) document.querySelector<HTMLButtonElement>('.mobile-menu')?.focus({ preventScroll: true }); setMobileNav(false); setTutorialRequest(value => value + 1) }}><Compass size={21} /><span>チュートリアル</span></button>
-        {shopRole && <button className={`nav-button ${view === 'admin' ? 'active' : ''}`} title="ショップ管理" aria-label="ショップ管理" onClick={() => { setView('admin'); setMobileNav(false) }}><ShieldCheck size={21} /><span>商品管理</span></button>}
+        {shopRole && <button className={`nav-button ${view === 'admin' ? 'active' : ''}`} title="ショップ管理" aria-label="ショップ管理" onClick={() => navigateTo('admin')}><ShieldCheck size={21} /><span>商品管理</span></button>}
       </div>
       <div className="nav-bottom"><button className="nav-button" title="シミュレーター設定" aria-label="シミュレーター設定" onClick={() => setModal('settings')}><Settings2 size={20} /><span>設定</span></button><div className="avatar" title={userLabel || "ゲスト練習用アカウント"}>{userLabel?.slice(0,1).toUpperCase() || "M"}</div></div>
     </aside>
 
     <div className="workspace">
       <header className="topbar">
-        <div className="topbar-left"><button className="icon-button mobile-menu" aria-label="メニューを開く" onClick={() => setMobileNav(!mobileNav)}><Menu size={20} /></button><a className="wordmark" href="#" onClick={e => { e.preventDefault(); setView('trade') }}>MANGO<span>FX</span></a><span className="header-divider" /><span className="workspace-label">トレーディング・スタジオ</span></div>
+        <div className="topbar-left"><button className="icon-button mobile-menu" aria-label="メニューを開く" onClick={() => setMobileNav(!mobileNav)}><Menu size={20} /></button><a className="wordmark" href="#" onClick={e => { e.preventDefault(); navigateTo('trade') }}>MANGO<span>FX</span></a><span className="header-divider" /><span className="workspace-label">トレーディング・スタジオ</span></div>
         <div className="topbar-right"><PwaStatus /><ThemeSwitcher onOpenSettings={() => setModal('settings')} /><InstallApp />{accountControl}<span className="practice-badge"><span />DEMO ACCOUNT</span><button className="help-button" onClick={() => setModal('guide')}><CircleHelp size={16} /><span>使い方</span></button></div>
       </header>
-      <main>
+      <main ref={page} data-page={view}>
         <section className="page-heading"><div><div className="eyebrow"><span className="tiny-dot" /> YOUR NEXT CHAPTER STARTS HERE</div><h1>{view === 'trade' ? <HomeGreeting /> : view === 'learn' ? <>FXを知る。<span>自信に変える。</span></> : view === 'shop' ? <>練習の成果を、<span>ごほうびに。</span></> : view === 'ranking' ? <>みんなの、<span>練習ランキング。</span></> : <>商品の登録と、<span>管理を。</span></>}</h1><p>{view === 'trade' ? '仮想資金100万円で、相場と向き合う練習を。' : view === 'learn' ? 'はじめの一歩から、取引を振り返るところまで。' : view === 'shop' ? '仮想利益で、写真やコード入りファイルを選べます。' : view === 'ranking' ? '登録者の確定損益を、プラスとマイナスで表示します。' : '商品の登録・価格・公開状態を管理します。'}</p></div><div className="simulation-label"><ShieldCheck size={17} /><div><strong>練習だけに、集中できる。</strong><span>登録不要 · 実際の資金は使いません</span></div></div></section>
         {accountNotice}
         {saveFailed && <div className="notice-banner" role="alert"><Info size={17} />このブラウザでは進捗を保存できません。ページを閉じると現在の取引が失われます。</div>}
-        {view === 'ranking' ? <Leaderboard key={user?.id ?? 'guest'} userId={user?.id ?? null} onBeforeLoad={onBeforePhotoPurchase} onRequestLogin={onRequestLogin} /> : view === 'shop' || view === 'admin' ? <PhotoShop key={`${user?.id ?? 'guest'}:${view}`} mode={view} userId={user?.id ?? null} onBeforePurchase={onBeforePhotoPurchase} onRoleChange={setShopRole} onRequestLogin={onRequestLogin} /> : view === 'learn' ? <section className="learn-page"><div className="learn-hero"><div className="learn-icon"><BookOpen size={32} /></div><div><span className="eyebrow">THE BASICS</span><h2>しくみがわかると、取引が変わる。</h2><p>4つのポイントを押さえて、小さな数量から試してみましょう。</p></div></div><div className="lesson-grid">{guideSteps.map((step, index) => <article className="lesson-card" key={step.title}><div className="lesson-top"><step.icon size={25} /><span>0{index+1}</span></div><h3>{step.title}</h3><p>{step.text}</p></article>)}</div><div className="panel assumptions"><h3><Info size={18} />このシミュレーターの取引ルール</h3><p>価格はモデルが生成する練習用データで、実際の為替レートではありません。初期資金100万円、レバレッジ25倍、1 lot＝1万通貨。スプレッドは固定で、取引手数料・スワップ・税金は計算に含みません。EUR/USDの損益はUSD/JPYで円換算します。</p><p>相場は2秒で1分進みます（通常速度）。停止中でも注文・決済できます。指値・逆指値、利確・損切りは各更新時の売買可能なBid/Askで判定し、その時のレートで約定します。待機注文の証拠金は約定時に確認し、不足する注文はキャンセルされます。実際の市場の流動性や通信遅延は再現しません。</p><button className="primary-button" onClick={() => setView('trade')}>トレードを始める<ArrowRight size={17} /></button></div></section> : <>
+        {view === 'ranking' ? <Leaderboard key={user?.id ?? 'guest'} userId={user?.id ?? null} onBeforeLoad={onBeforePhotoPurchase} onRequestLogin={onRequestLogin} /> : view === 'shop' || view === 'admin' ? <PhotoShop key={`${user?.id ?? 'guest'}:${view}`} mode={view} userId={user?.id ?? null} onBeforePurchase={onBeforePhotoPurchase} onRoleChange={setShopRole} onRequestLogin={onRequestLogin} /> : view === 'learn' ? <section className="learn-page"><div className="learn-hero"><div className="learn-icon"><BookOpen size={32} /></div><div><span className="eyebrow">THE BASICS</span><h2>しくみがわかると、取引が変わる。</h2><p>4つのポイントを押さえて、小さな数量から試してみましょう。</p></div></div><div className="lesson-grid">{guideSteps.map((step, index) => <article className="lesson-card" key={step.title}><div className="lesson-top"><step.icon size={25} /><span>0{index+1}</span></div><h3>{step.title}</h3><p>{step.text}</p></article>)}</div><div className="panel assumptions"><h3><Info size={18} />このシミュレーターの取引ルール</h3><p>価格はモデルが生成する練習用データで、実際の為替レートではありません。初期資金100万円、レバレッジ25倍、1 lot＝1万通貨。スプレッドは固定で、取引手数料・スワップ・税金は計算に含みません。EUR/USDの損益はUSD/JPYで円換算します。</p><p>相場は2秒で1分進みます（通常速度）。停止中でも注文・決済できます。指値・逆指値、利確・損切りは各更新時の売買可能なBid/Askで判定し、その時のレートで約定します。待機注文の証拠金は約定時に確認し、不足する注文はキャンセルされます。実際の市場の流動性や通信遅延は再現しません。</p><button className="primary-button" onClick={() => navigateTo('trade')}>トレードを始める<ArrowRight size={17} /></button></div></section> : <>
           <section className="account-grid" aria-label="口座状況">
             <article className="stat-card"><div className="stat-top"><span>純資産</span><Wallet size={16} /></div><div className="stat-value">{yen(metrics.equity)}</div><div className="stat-caption"><span className={totalPnl >= 0 ? 'text-up' : 'text-down'}>{totalPnl >= 0 ? <ArrowUpRight size={13} /> : <ArrowDownLeft size={13} />}{yen(totalPnl, true)}</span><span>開始時から</span></div></article>
             <article className="stat-card"><div className="stat-top"><span>評価損益</span><TrendingUp size={16} /></div><div className={`stat-value ${metrics.unrealizedPnl >= 0 ? 'text-up' : 'text-down'}`}>{yen(metrics.unrealizedPnl, true)}</div><div className="stat-caption">保有中の建玉 <strong>{state.account.positions.length}</strong> 件</div></article>
@@ -278,7 +302,7 @@ export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onSt
               <section className="learning-card"><div className="learning-card-top"><span className="learn-mini-icon"><BookOpen size={17}/></span><span>LEARN AS YOU TRADE</span><Sparkles size={15}/></div><h3>その一歩を、<br/>確かな学びに。</h3><p>スプレッド、証拠金、損益。<br/>取引のしくみをやさしく解説。</p><button onClick={()=>setModal('guide')}>はじめてのFXガイド<ArrowUpRight size={16}/></button><div className="learning-decoration" aria-hidden="true"><div/><div/><div/><div/><div/></div></section>
             </aside>
           </div>
-          <div className="bottom-note"><Info size={13}/><span>表示レートはシミュレーションです。固定スプレッド・レバレッジ25倍。スワップ、税金、取引手数料は含みません。</span><button onClick={()=>setView('learn')}>取引ルール<ChevronRight size={12}/></button></div>
+          <div className="bottom-note"><Info size={13}/><span>表示レートはシミュレーションです。固定スプレッド・レバレッジ25倍。スワップ、税金、取引手数料は含みません。</span><button onClick={()=>navigateTo('learn')}>取引ルール<ChevronRight size={12}/></button></div>
         </>}
         <footer className="page-footer"><span>MANGO FX <span>Practice makes progress.</span></span><span>少しずつ、あなたのペースで。<span className="footer-dot"/>SIMULATION ONLY</span></footer>
       </main>
@@ -286,7 +310,7 @@ export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onSt
     <WelcomeTutorial request={tutorialRequest} onRequestRegister={onRequestRegister} onRequestLogin={onRequestLogin} />
     {toast&&<div className={`toast ${toast.type}`} role="status"><span>{toast.type==='success'?<Check size={17}/>:<Info size={17}/>}</span>{toast.text}<button aria-label="通知を閉じる" onClick={()=>setToast(null)}><X size={15}/></button></div>}
     {modal&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setModal(null)}}><div className={`modal ${modal==='guide'?'guide-modal':''}`} ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="modal-title" tabIndex={-1}><button className="modal-close icon-button" aria-label="閉じる" onClick={()=>setModal(null)}><X size={20}/></button>
-      {modal==='guide'?<><span className="modal-eyebrow"><BookOpen size={17}/> MANGO FX GUIDE</span><h2 id="modal-title">最初のトレードを、ここから。</h2><p className="modal-subtitle">4つのポイントでわかる、FXの基本。</p><div className="guide-steps">{guideSteps.map((step,i)=><article key={step.title}><span className="step-number">0{i+1}</span><div><h3>{step.title}</h3><p>{step.text}</p></div></article>)}</div><button className="primary-button full-width" onClick={()=>{setModal(null);setView('trade')}}>わかった、試してみる<ArrowRight size={17}/></button></>:modal==='settings'?<><span className="modal-eyebrow"><Settings2 size={17}/> SIMULATION SETTINGS</span><h2 id="modal-title">自分に合う練習環境に。</h2><p className="modal-subtitle">配色や相場のシナリオは、いつでも変更できます。</p><ThemeSettings /><label className="settings-label">相場シナリオ<select value={state.scenario} onChange={e=>setState(s=>({...s,scenario:e.target.value as Scenario}))}>{Object.entries(scenarios).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label><p className="settings-hint">{state.scenario==='balanced'?'方向感の少ない相場で、値動きの幅を観察します。':state.scenario==='bullish'?'緩やかな上昇傾向。短期的には下がることもあります。':state.scenario==='bearish'?'緩やかな下降傾向。短期的には上がることもあります。':'変動が大きい相場。数量や損切りの大切さを体験します。'}</p><div className="settings-info"><div><span>口座通貨</span><strong>日本円（JPY）</strong></div><div><span>レバレッジ</span><strong>25倍（固定）</strong></div><div><span>ロスカット水準</span><strong>証拠金維持率 50%</strong></div><div><span>保存先</span><strong>この端末のブラウザ</strong></div></div><button className="reset-button" onClick={()=>setModal('reset')}><RotateCcw size={16}/>練習をリセットする</button><p className="settings-hint">履歴・建玉・注文を消去して、仮想資金100万円から再開します。</p><button className="primary-button full-width" onClick={()=>setModal(null)}>設定を閉じる<Check size={16}/></button></>:<><span className="reset-modal-icon"><RotateCcw size={26}/></span><h2 id="modal-title">もう一度、はじめから。</h2><p className="modal-subtitle">すべての建玉・注文・取引履歴を消去します。仮想資金は100万円に戻ります。この操作は取り消せません。</p><div className="reset-modal-actions"><button className="secondary-button" onClick={()=>setModal('settings')}>キャンセル</button><button className="danger-button" onClick={()=>{setState(createSavedState());setSide('buy');setOrderType('market');setLots('1');setWithTargets(false);setTakeProfit('');setStopLoss('');setTab('positions');setError('');setModal(null);notify('練習をリセットしました。新しい一歩を始めましょう。','info')}}>リセットする</button></div></>}
+      {modal==='guide'?<><span className="modal-eyebrow"><BookOpen size={17}/> MANGO FX GUIDE</span><h2 id="modal-title">最初のトレードを、ここから。</h2><p className="modal-subtitle">4つのポイントでわかる、FXの基本。</p><div className="guide-steps">{guideSteps.map((step,i)=><article key={step.title}><span className="step-number">0{i+1}</span><div><h3>{step.title}</h3><p>{step.text}</p></div></article>)}</div><button className="primary-button full-width" onClick={()=>{setModal(null);navigateTo('trade')}}>わかった、試してみる<ArrowRight size={17}/></button></>:modal==='settings'?<><span className="modal-eyebrow"><Settings2 size={17}/> SIMULATION SETTINGS</span><h2 id="modal-title">自分に合う練習環境に。</h2><p className="modal-subtitle">配色や相場のシナリオは、いつでも変更できます。</p><ThemeSettings /><label className="settings-label">相場シナリオ<select value={state.scenario} onChange={e=>setState(s=>({...s,scenario:e.target.value as Scenario}))}>{Object.entries(scenarios).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label><p className="settings-hint">{state.scenario==='balanced'?'方向感の少ない相場で、値動きの幅を観察します。':state.scenario==='bullish'?'緩やかな上昇傾向。短期的には下がることもあります。':state.scenario==='bearish'?'緩やかな下降傾向。短期的には上がることもあります。':'変動が大きい相場。数量や損切りの大切さを体験します。'}</p><div className="settings-info"><div><span>口座通貨</span><strong>日本円（JPY）</strong></div><div><span>レバレッジ</span><strong>25倍（固定）</strong></div><div><span>ロスカット水準</span><strong>証拠金維持率 50%</strong></div><div><span>保存先</span><strong>この端末のブラウザ</strong></div></div><button className="reset-button" onClick={()=>setModal('reset')}><RotateCcw size={16}/>練習をリセットする</button><p className="settings-hint">履歴・建玉・注文を消去して、仮想資金100万円から再開します。</p><button className="primary-button full-width" onClick={()=>setModal(null)}>設定を閉じる<Check size={16}/></button></>:<><span className="reset-modal-icon"><RotateCcw size={26}/></span><h2 id="modal-title">もう一度、はじめから。</h2><p className="modal-subtitle">すべての建玉・注文・取引履歴を消去します。仮想資金は100万円に戻ります。この操作は取り消せません。</p><div className="reset-modal-actions"><button className="secondary-button" onClick={()=>setModal('settings')}>キャンセル</button><button className="danger-button" onClick={()=>{setState(createSavedState());setSide('buy');setOrderType('market');setLots('1');setWithTargets(false);setTakeProfit('');setStopLoss('');setTab('positions');setError('');setModal(null);notify('練習をリセットしました。新しい一歩を始めましょう。','info')}}>リセットする</button></div></>}
     </div></div>}
   </div>
 }

@@ -5,6 +5,7 @@ import { AuthProvider } from './auth/AuthProvider'
 import { initializeTheme, ThemeProvider } from './theme/ThemeProvider'
 import './styles.css'
 import './theme/dark.css'
+import './theme/glass.css'
 
 initializeTheme()
 

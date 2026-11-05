@@ -5,7 +5,9 @@
 .welcome-brand { display: flex; gap: 6px; align-items: center; font-size: 11px; font-weight: 700; letter-spacing: .09em; color: var(--lime); }
 .welcome-close { display: grid; place-items: center; width: 33px; height: 33px; border-radius: 7px; color: var(--muted); }
 .welcome-close:hover { background: var(--surface-soft); color: var(--text); }
-.welcome-content { padding: 17px 36px 10px; min-height: 360px; }
+.welcome-content { padding: 17px 36px 10px; min-height: 360px; animation: welcome-page-in .2s ease-out; }
+@keyframes welcome-page-in { from { opacity: .5; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .welcome-content { animation: none; } }
 .welcome-mark { display: grid; place-items: center; width: 65px; height: 65px; margin-bottom: 23px; border: 1px solid var(--border); border-radius: 19px; color: var(--lime); background: linear-gradient(135deg, var(--surface-soft), var(--surface-warm)); }
 .welcome-eyebrow { display: block; color: var(--orange-ink); font-size: 9px; font-weight: 600; letter-spacing: .12em; line-height: 1.8; }
 .welcome-content h2 { margin: 9px 0 12px; color: var(--text); font-size: 26px; font-weight: 650; line-height: 1.6; overflow-wrap: anywhere; }
