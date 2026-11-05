@@ -36,8 +36,9 @@ function errorText(error: unknown): string {
 export default function AccountWorkspace() {
   const { user, loading, configured } = useAuth()
   const [signInRequest, setSignInRequest] = useState(0)
+  const [signUpRequest, setSignUpRequest] = useState(0)
   if (loading) return <WorkspaceScreen title="ログイン状態を確認しています" />
-  if (!user) return <App key="guest" accountControl={configured ? <AccountMenu signInRequest={signInRequest} /> : undefined} onRequestLogin={configured ? () => setSignInRequest(value => value + 1) : undefined} />
+  if (!user) return <App key="guest" accountControl={configured ? <AccountMenu signInRequest={signInRequest} signUpRequest={signUpRequest} /> : undefined} onRequestLogin={configured ? () => setSignInRequest(value => value + 1) : undefined} onRequestRegister={configured ? () => setSignUpRequest(value => value + 1) : undefined} />
   return <AccountWorkspaceLock key={user.id} userId={user.id}><PersonalWorkspace user={user} /></AccountWorkspaceLock>
 }
 

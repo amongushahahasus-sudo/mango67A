@@ -11,6 +11,8 @@ const test = base.extend<{ installableContext: BrowserContext }>({
   installableContext: async ({}, use) => {
     const profile = await mkdtemp(join(tmpdir(),'mango-pwa-profile-'))
     const context = await chromium.launchPersistentContext(profile, { headless:true, executablePath:process.env.CHROMIUM_PATH || '/usr/bin/chromium',args:['--no-sandbox','--disable-dev-shm-usage'] })
+    // These cases exercise install/offline/update behavior after the welcome flow.
+    await context.addInitScript(() => localStorage.setItem('mango-fx-onboarding-v1', 'completed'))
     try { await use(context) }
     finally { await context.close(); await rm(profile,{recursive:true,force:true}) }
   },
