@@ -8,6 +8,7 @@ import HomeGreeting from './components/HomeGreeting'
 import PhotoShop from './components/PhotoShop'
 import Leaderboard from './components/Leaderboard'
 import WelcomeTutorial from './components/WelcomeTutorial'
+import SlidingNavigation from './components/SlidingNavigation'
 import { usePageTransition } from './hooks/usePageTransition'
 import { useAuth } from './auth/AuthProvider'
 import { loadPhotoShop, type ShopRole } from './lib/photoShop'
@@ -70,7 +71,9 @@ export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onSt
   const [state, setState] = useState<SavedState>(() => initialState ?? loadSavedState(storageKey))
   const [view, setView] = useState<View>('trade')
   const page = useRef<HTMLElement>(null)
-  usePageTransition(page, view)
+  const pageStage = useRef<HTMLDivElement>(null)
+  const navigation = useRef<HTMLDivElement>(null)
+  const { navigate: transitionPage, activePage } = usePageTransition(page, pageStage, view)
   const [tutorialRequest, setTutorialRequest] = useState(0)
   const { user } = useAuth()
   const [shopRole, setShopRole] = useState<ShopRole>(null)
@@ -96,24 +99,23 @@ export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onSt
   const [mobileNav, setMobileNav] = useState(false)
   const marketEventRef = useRef(state.marketEvent?.id)
   const activityRef = useRef<HTMLElement>(null)
-  const historyScrollTimer = useRef<number | null>(null)
   const latest = useRef(state)
   const dialogRef = useRef<HTMLDivElement>(null)
   const lastFocused = useRef<HTMLElement | null>(null)
   latest.current = state
   const notify = (text: string, type: 'success' | 'info' = 'success') => setToast({ text, type })
-  const navigateTo = (next: View, scrollToTop = true) => {
-    if (historyScrollTimer.current !== null) {
-      window.clearTimeout(historyScrollTimer.current)
-      historyScrollTimer.current = null
-    }
-    setView(next)
+  const navigateTo = (next: View, scrollToTop = true, onCommitted?: () => void) => {
+    if (mobileNav) document.querySelector<HTMLButtonElement>('.mobile-menu')?.focus({ preventScroll: true })
     setMobileNav(false)
-    if (scrollToTop) window.scrollTo(0, 0)
+    const order: View[] = ['trade', 'learn', 'shop', 'ranking', 'admin']
+    transitionPage(next, () => setView(next), {
+      direction: order.indexOf(next) >= order.indexOf(view) ? 1 : -1,
+      onCommitted: () => {
+        if (scrollToTop) window.scrollTo(0, 0)
+        onCommitted?.()
+      },
+    })
   }
-  useEffect(() => () => {
-    if (historyScrollTimer.current !== null) window.clearTimeout(historyScrollTimer.current)
-  }, [])
 
   useEffect(() => {
     try { localStorage.setItem(storageKey, JSON.stringify(state)); setSaveFailed(false) }
@@ -217,25 +219,26 @@ export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onSt
     notify('取引履歴をCSVでダウンロードしました。')
   }
   const jumpHistory = () => {
-    navigateTo('trade', false)
+    const alreadyTrading = view === 'trade'
     setTab('history')
-    historyScrollTimer.current = window.setTimeout(() => {
-      historyScrollTimer.current = null
-      activityRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 50)
+    navigateTo('trade', false, () => {
+      const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      activityRef.current?.scrollIntoView({ behavior: alreadyTrading && !reducedMotion ? 'smooth' : 'instant', block: 'start' })
+    })
   }
 
   return <div className="app-shell">
     <aside className={`sidebar ${mobileNav ? 'mobile-open' : ''}`} aria-label="メインナビゲーション">
       <button className="brand-icon" aria-label="MANGO FX ホーム" onClick={() => navigateTo('trade')}><img src={appIcon} alt="" /></button>
-      <div className="nav-main">
-        <button className={`nav-button ${view === 'trade' ? 'active' : ''}`} title="トレード" aria-label="トレード" onClick={() => navigateTo('trade')}><LayoutDashboard size={21} /><span>トレード</span></button>
+      <div className="nav-main" ref={navigation}>
+        <SlidingNavigation containerRef={navigation} activePage={activePage} />
+        <button data-page-button="trade" className={`nav-button ${activePage === 'trade' ? 'active' : ''}`} title="トレード" aria-label="トレード" onClick={() => navigateTo('trade')}><LayoutDashboard size={21} /><span>トレード</span></button>
         <button className="nav-button" title="取引履歴" aria-label="取引履歴へ移動" onClick={jumpHistory}><History size={21} /><span>取引履歴</span></button>
-        <button className={`nav-button ${view === 'learn' ? 'active' : ''}`} title="学習ガイド" aria-label="学習ガイド" onClick={() => navigateTo('learn')}><BookOpen size={21} /><span>学ぶ</span></button>
-        <button className={`nav-button ${view === 'shop' ? 'active' : ''}`} title="ショップ" aria-label="ショップ" onClick={() => navigateTo('shop')}><ShoppingBag size={21} /><span>ショップ</span></button>
-        <button className={`nav-button ${view === 'ranking' ? 'active' : ''}`} title="ランキング" aria-label="ランキング" onClick={() => navigateTo('ranking')}><Trophy size={21} /><span>ランキング</span></button>
+        <button data-page-button="learn" className={`nav-button ${activePage === 'learn' ? 'active' : ''}`} title="学習ガイド" aria-label="学習ガイド" onClick={() => navigateTo('learn')}><BookOpen size={21} /><span>学ぶ</span></button>
+        <button data-page-button="shop" className={`nav-button ${activePage === 'shop' ? 'active' : ''}`} title="ショップ" aria-label="ショップ" onClick={() => navigateTo('shop')}><ShoppingBag size={21} /><span>ショップ</span></button>
+        <button data-page-button="ranking" className={`nav-button ${activePage === 'ranking' ? 'active' : ''}`} title="ランキング" aria-label="ランキング" onClick={() => navigateTo('ranking')}><Trophy size={21} /><span>ランキング</span></button>
         <button className="nav-button" title="チュートリアル" aria-label="チュートリアル" onClick={() => { setModal(null); if (mobileNav) document.querySelector<HTMLButtonElement>('.mobile-menu')?.focus({ preventScroll: true }); setMobileNav(false); setTutorialRequest(value => value + 1) }}><Compass size={21} /><span>チュートリアル</span></button>
-        {shopRole && <button className={`nav-button ${view === 'admin' ? 'active' : ''}`} title="ショップ管理" aria-label="ショップ管理" onClick={() => navigateTo('admin')}><ShieldCheck size={21} /><span>商品管理</span></button>}
+        {shopRole && <button data-page-button="admin" className={`nav-button ${activePage === 'admin' ? 'active' : ''}`} title="ショップ管理" aria-label="ショップ管理" onClick={() => navigateTo('admin')}><ShieldCheck size={21} /><span>商品管理</span></button>}
       </div>
       <div className="nav-bottom"><button className="nav-button" title="シミュレーター設定" aria-label="シミュレーター設定" onClick={() => setModal('settings')}><Settings2 size={20} /><span>設定</span></button><div className="avatar" title={userLabel || "ゲスト練習用アカウント"}>{userLabel?.slice(0,1).toUpperCase() || "M"}</div></div>
     </aside>
@@ -245,7 +248,8 @@ export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onSt
         <div className="topbar-left"><button className="icon-button mobile-menu" aria-label="メニューを開く" onClick={() => setMobileNav(!mobileNav)}><Menu size={20} /></button><a className="wordmark" href="#" onClick={e => { e.preventDefault(); navigateTo('trade') }}>MANGO<span>FX</span></a><span className="header-divider" /><span className="workspace-label">トレーディング・スタジオ</span></div>
         <div className="topbar-right"><PwaStatus /><ThemeSwitcher onOpenSettings={() => setModal('settings')} /><InstallApp />{accountControl}<span className="practice-badge"><span />DEMO ACCOUNT</span><button className="help-button" onClick={() => setModal('guide')}><CircleHelp size={16} /><span>使い方</span></button></div>
       </header>
-      <main ref={page} data-page={view}>
+      <div className="page-stage" ref={pageStage}>
+      <main ref={page} data-page={view} tabIndex={-1}>
         <section className="page-heading"><div><div className="eyebrow"><span className="tiny-dot" /> YOUR NEXT CHAPTER STARTS HERE</div><h1>{view === 'trade' ? <HomeGreeting /> : view === 'learn' ? <>FXを知る。<span>自信に変える。</span></> : view === 'shop' ? <>練習の成果を、<span>ごほうびに。</span></> : view === 'ranking' ? <>みんなの、<span>練習ランキング。</span></> : <>商品の登録と、<span>管理を。</span></>}</h1><p>{view === 'trade' ? '仮想資金100万円で、相場と向き合う練習を。' : view === 'learn' ? 'はじめの一歩から、取引を振り返るところまで。' : view === 'shop' ? '仮想利益で、写真やコード入りファイルを選べます。' : view === 'ranking' ? '登録者の確定損益を、プラスとマイナスで表示します。' : '商品の登録・価格・公開状態を管理します。'}</p></div><div className="simulation-label"><ShieldCheck size={17} /><div><strong>練習だけに、集中できる。</strong><span>登録不要 · 実際の資金は使いません</span></div></div></section>
         {accountNotice}
         {saveFailed && <div className="notice-banner" role="alert"><Info size={17} />このブラウザでは進捗を保存できません。ページを閉じると現在の取引が失われます。</div>}
@@ -306,6 +310,7 @@ export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onSt
         </>}
         <footer className="page-footer"><span>MANGO FX <span>Practice makes progress.</span></span><span>少しずつ、あなたのペースで。<span className="footer-dot"/>SIMULATION ONLY</span></footer>
       </main>
+      </div>
     </div>
     <WelcomeTutorial request={tutorialRequest} onRequestRegister={onRequestRegister} onRequestLogin={onRequestLogin} />
     {toast&&<div className={`toast ${toast.type}`} role="status"><span>{toast.type==='success'?<Check size={17}/>:<Info size={17}/>}</span>{toast.text}<button aria-label="通知を閉じる" onClick={()=>setToast(null)}><X size={15}/></button></div>}
