@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import type { Page, Route } from '@playwright/test'
 import { createSavedState } from '../src/lib/practiceState'
+import { useFixedMarketPrices } from './market-fixture'
 
 const alice = '11111111-1111-4111-8111-111111111111'
 const bob = '22222222-2222-4222-8222-222222222222'
@@ -10,11 +11,12 @@ const users = {
   [bob]: { id:bob,email:'bob@example.test',user_metadata:{display_name:'Bob'},aud:'authenticated',role:'authenticated',app_metadata:{provider:'email',providers:['email']},created_at:'2026-01-01T00:00:00Z' },
 }
 type Row = {state:ReturnType<typeof createSavedState>; revision:number;updated_at:string}
-function snapshot(balance:number):Row {const state=createSavedState();state.account.balance=balance;state.paused=true;return {state,revision:1,updated_at:new Date().toISOString()}}
+function snapshot(balance:number):Row {const state=createSavedState();state.account.balance=balance;return {state,revision:1,updated_at:new Date().toISOString()}}
 function token(id:string) {const part=(value:unknown)=>Buffer.from(JSON.stringify(value)).toString('base64url');return `${part({alg:'HS256',typ:'JWT'})}.${part({sub:id,aud:'authenticated',role:'authenticated',exp:Math.floor(Date.now()/1000)+3600,iat:Math.floor(Date.now()/1000)})}.fixture-signature`}
 function session(id:keyof typeof users) {return {access_token:token(id),token_type:'bearer',expires_in:3600,expires_at:Math.floor(Date.now()/1000)+3600,refresh_token:`fixture-refresh-${id}`,user:users[id]}}
 function uid(route:Route) {try{return JSON.parse(Buffer.from(route.request().headers().authorization!.split(' ')[1].split('.')[1],'base64url').toString()).sub as string}catch{return ''}}
 async function backend(page:Page) {
+  await useFixedMarketPrices(page)
   const rows:Record<string,Row> = {[alice]:snapshot(1_200_000),[bob]:snapshot(800_000)}
   const writes:{user:string;expected:string;revision:unknown}[]=[]
   const authRequests:{path:string;data:unknown}[]=[]
@@ -73,7 +75,6 @@ test('real SDK flow isolates Alice and Bob from guest data and from each other',
   const server=await backend(page)
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message))
   await page.goto('/')
-  await page.getByRole('button',{name:'相場を一時停止',exact:true}).click()
   await page.getByRole('button',{name:'買い注文を出す',exact:true}).click()
   await page.getByRole('button',{name:'USD / JPYの買い建玉を決済',exact:true}).click()
   await login(page,'alice@example.test')
@@ -141,7 +142,6 @@ test('new accounts ask before importing existing guest practice',async({page})=>
   const server=await backend(page)
   delete server.rows[alice]
   await page.goto('/')
-  await page.getByRole('button',{name:'相場を一時停止',exact:true}).click()
   await page.getByRole('button',{name:'買い注文を出す',exact:true}).click()
   await page.getByRole('button',{name:'USD / JPYの買い建玉を決済',exact:true}).click()
   await login(page,'alice@example.test')

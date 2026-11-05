@@ -1,6 +1,7 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createSavedState } from '../src/lib/practiceState'
+import { useFixedMarketPrices } from './market-fixture'
 
 const buyerId = '11111111-1111-4111-8111-111111111111'
 const developerId = '33333333-3333-4333-8333-333333333333'
@@ -35,13 +36,13 @@ function userId(route: Route): string | null {
 function practiceRow() {
   const state = createSavedState()
   state.account.balance = 1_005_000
-  state.paused = true
   return { state, revision: 1, updated_at: timestamp }
 }
 type Order = { id: string; userId: string; status: 'pending' | 'approved' | 'rejected'; purchasedAt: string; reviewedAt: string | null }
 type Entry = { id: string; userId: string; requestId: string; productId: string; outcome: 'win' | 'lose'; cost: number; createdAt: string; refunded: boolean; orderId: string | null }
 
 async function mockLottery(page: Page) {
+  await useFixedMarketPrices(page)
   const server = {
     rows: { [buyerId]: practiceRow(), [developerId]: practiceRow() },
     config: { entryCost: 125, winRateBps: 2500, enabled: true, revision: 1 },

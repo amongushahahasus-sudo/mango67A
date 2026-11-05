@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readFile } from 'node:fs/promises'
-import { chromium } from '@playwright/test'
+import { chromium, expect } from '@playwright/test'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', args: ['--no-sandbox', '--disable-dev-shm-usage'] })
 try {
@@ -19,7 +19,12 @@ try {
   page.on('pageerror', error => errors.push(error.message))
   page.on('request', request => { if (/^https?:/.test(request.url()) && request.url() !== documentUrl) requests.push(request.url()) })
   await page.goto(documentUrl)
-  await page.getByRole('button', { name: '相場を一時停止', exact: true }).click()
+  await expect(page.getByRole('button', { name: '買い注文を出す', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^相場を(一時停止|再生)$/ })).toHaveCount(0)
+  const lastMarketTime = () => page.evaluate(() => JSON.parse(localStorage.getItem('mango-fx-simulator-v1') || 'null')?.markets.USDJPY.at(-1).time ?? null)
+  await expect.poll(lastMarketTime).not.toBeNull()
+  const marketTime = await lastMarketTime()
+  await expect.poll(lastMarketTime, { timeout: 7000 }).toBeGreaterThan(marketTime)
   await page.getByRole('button', { name: /^表示モード（/ }).click()
   await page.getByRole('dialog', { name: '表示モード', exact: true }).getByRole('button', { name: 'ガラス調', exact: true }).click()
   assert.equal(await page.locator('html').getAttribute('data-interface-style'), 'glass')
@@ -28,11 +33,16 @@ try {
   await page.getByRole('button', { name: 'USD / JPYの買い建玉を決済', exact: true }).click()
   await page.getByRole('tab', { name: /取引履歴/ }).click()
   const panel = page.getByRole('region', { name: '取引管理' })
-  assert.equal(await panel.getByRole('cell', { name: '−¥30', exact: true }).count(), 1)
+  const historyRow = panel.getByRole('row').nth(1)
+  await expect(historyRow).toBeVisible()
+  const historyText = await historyRow.innerText()
+  const history = await page.evaluate(() => JSON.parse(localStorage.getItem('mango-fx-simulator-v1')).account.history)
+  assert.equal(history.length, 1)
   await page.reload()
   assert.equal(await page.locator('html').getAttribute('data-interface-style'), 'glass')
   await page.getByRole('tab', { name: /取引履歴/ }).click()
-  assert.equal(await panel.getByRole('cell', { name: '−¥30', exact: true }).count(), 1)
+  await expect(historyRow).toHaveText(historyText, { useInnerText: true })
+  assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('mango-fx-simulator-v1')).account.history), history)
   const downloaded = page.waitForEvent('download')
   await page.getByRole('button', { name: '取引履歴をCSV出力', exact: true }).click()
   assert.equal((await downloaded).suggestedFilename(), 'mango-fx-trades.csv')
@@ -59,5 +69,5 @@ try {
   await firstVisit.close()
   assert.deepEqual(errors, [])
   assert.deepEqual(requests, [])
-  console.log('PASS: standalone document runs with networking disabled, glass choice persists on reload, first-visit tutorial can finish as a guest, trades and closes, exports CSV, and loads no external assets. Direct file:// navigation is blocked by managed cloud Chromium policy and was not verified here.')
+  console.log('PASS: standalone document runs with networking disabled, market advances without pause controls, glass choice persists on reload, first-visit tutorial can finish as a guest, trades and closes with history preserved, exports CSV, and loads no external assets. Direct file:// navigation is blocked by managed cloud Chromium policy and was not verified here.')
 } finally { await browser.close() }

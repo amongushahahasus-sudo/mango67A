@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
 import { createSavedState } from '../src/lib/practiceState'
+import { useFixedMarketPrices } from './market-fixture'
 
 const alice = '11111111-1111-4111-8111-111111111111'
 const bob = '22222222-2222-4222-8222-222222222222'
@@ -15,7 +16,7 @@ const users: Record<string, FixtureUser> = {
   [bob]: { id: bob, email: 'bob@example.test', user_metadata: { display_name: 'Bob' }, aud: 'authenticated', role: 'authenticated', app_metadata: { provider: 'email', providers: ['email'] }, created_at: stamp },
 }
 type Row = { state: ReturnType<typeof createSavedState>; revision: number; updated_at: string }
-function row(balance: number): Row { const state = createSavedState(); state.account.balance = balance; state.paused = true; return { state, revision: 1, updated_at: stamp } }
+function row(balance: number): Row { const state = createSavedState(); state.account.balance = balance; return { state, revision: 1, updated_at: stamp } }
 function session(id: string, user = users[id]) {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url')
   return { access_token: `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ sub: id, aud: 'authenticated', role: 'authenticated', exp: Math.floor(Date.now() / 1000) + 3600 })}.fixture`, token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: `fixture-${id}`, user }
@@ -24,6 +25,7 @@ function uid(route: Route): string | null {
   try { return JSON.parse(Buffer.from(route.request().headers().authorization.split(' ')[1].split('.')[1], 'base64url').toString()).sub ?? null } catch { return null }
 }
 async function backend(page: Page) {
+  await useFixedMarketPrices(page)
   let release: (() => void) | null = null
   const server = {
     rows: { [alice]: row(1_234_567.89), [bob]: row(800_000) },

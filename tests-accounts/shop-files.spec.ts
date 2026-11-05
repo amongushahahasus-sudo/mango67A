@@ -1,6 +1,7 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createSavedState } from '../src/lib/practiceState'
+import { useFixedMarketPrices } from './market-fixture'
 const alice = '11111111-1111-4111-8111-111111111111'
 const bob = '22222222-2222-4222-8222-222222222222'
 const developer = '33333333-3333-4333-8333-333333333333'
@@ -41,7 +42,7 @@ type PracticeRow = {
   revision: number
   updated_at: string
 }
-const practice = (): PracticeRow => { const state = createSavedState(); state.account.balance = 1005000; state.paused = true; return { state, revision: 1, updated_at: stamp }; }
+const practice = (): PracticeRow => { const state = createSavedState(); state.account.balance = 1005000; return { state, revision: 1, updated_at: stamp }; }
 function session(id: string) {
   const b64 = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url')
   return { access_token: `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: id, aud: 'authenticated', role: 'authenticated', exp: Math.floor(Date.now() / 1000) + 3600 })}.fixture`, token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: `fixture-${id}`, user: users[id] }
@@ -53,6 +54,7 @@ catch {
   return null
 } }
 async function backend(page: Page) {
+  await useFixedMarketPrices(page)
   const photoBytes = await readFile('public/icons/mango-fx-192.png')
   const server = {
     rows: { [alice]: practice(), [bob]: practice(), [developer]: practice() } as Record<string, PracticeRow>,
@@ -292,6 +294,12 @@ async function backend(page: Page) {
 async function login(page: Page, id = alice) { await page.getByRole('button', { name: 'ログイン', exact: true }).click(); const dialog = page.getByRole('dialog'); await dialog.getByRole('textbox', { name: 'メールアドレス', exact: true }).fill(users[id].email); await dialog.getByLabel('パスワード', { exact: true }).fill('Fixture-password-123!'); await dialog.getByRole('button', { name: 'ログインする', exact: true }).click(); await expect(page.getByRole('button', { name: `${users[id].user_metadata.display_name}のアカウント`, exact: true })).toBeVisible(); }
 async function logout(page: Page, id = alice) { await page.getByRole('button', { name: `${users[id].user_metadata.display_name}のアカウント`, exact: true }).click(); await page.getByRole('menuitem', { name: 'ログアウト', exact: true }).click(); await expect(page.getByRole('button', { name: 'ログイン', exact: true })).toBeVisible({ timeout: 15000 }); }
 async function openShop(page: Page) { await page.getByRole('button', { name: 'ショップ', exact: true }).click(); }
+async function openAdmin(page: Page) {
+  await page.getByRole('button', { name: 'ショップ管理', exact: true }).click()
+  await expect(page.locator('main')).toHaveAttribute('data-page', 'admin')
+  await expect.poll(() => page.locator('main').evaluate(main => (main as HTMLElement).inert)).toBe(false)
+  await expect(page.locator('.page-stage')).not.toHaveAttribute('data-transitioning', 'true')
+}
 function card(page: Page, title = 'サンプルコードファイル') { return page.locator('article').filter({ has: page.getByRole('heading', { name: title, exact: true }) }); }
 test('the renamed shop omits the old introduction and never previews code-file contents', async ({ page }) => {
   const server = await backend(page)
@@ -327,7 +335,7 @@ test('a file purchase reserves one item and only approval permits its original d
   await expect(card(page).getByRole('button', { name: /申請する$/ })).toHaveCount(0)
   await logout(page, bob)
   await login(page, developer)
-  await page.getByRole('button', { name: 'ショップ管理', exact: true }).click()
+  await openAdmin(page)
   const order = page.locator('.shop-order-list > li').filter({ hasText: 'alice@example.test' })
   await order.getByRole('button', { name: '承認して渡す', exact: true }).click()
   await order.getByRole('button', { name: '承認を確定', exact: true }).click()
@@ -353,7 +361,7 @@ test('rejecting a pending file order refunds its credit and makes the item avail
   await page.keyboard.press('Escape')
   await logout(page)
   await login(page, developer)
-  await page.getByRole('button', { name: 'ショップ管理', exact: true }).click()
+  await openAdmin(page)
   const order = page.locator('.shop-order-list > li').filter({ hasText: 'alice@example.test' })
   await order.getByRole('button', { name: '却下して戻す', exact: true }).click()
   await order.getByRole('button', { name: '却下を確定', exact: true }).click()
@@ -373,7 +381,7 @@ test('a developer uploads code data only to private file storage', async ({ page
   const server = await backend(page)
   await page.goto('/')
   await login(page, developer)
-  await page.getByRole('button', { name: 'ショップ管理', exact: true }).click()
+  await openAdmin(page)
   await page.getByRole('combobox', { name: '商品の種類', exact: true }).selectOption('file')
   await page.getByLabel('販売するファイル', { exact: true }).setInputFiles({ name: 'sample-code.txt', mimeType: 'text/plain', buffer: Buffer.from(code) })
   await page.getByLabel('タイトル', { exact: true }).fill('確認後に渡すファイル')
@@ -414,7 +422,7 @@ test('a code-file product uses a separate public product photo while its deliver
   const image = await readFile('public/icons/mango-fx-192.png')
   await page.goto('/')
   await login(page, developer)
-  await page.getByRole('button', { name: 'ショップ管理', exact: true }).click()
+  await openAdmin(page)
   await page.getByRole('combobox', { name: '商品の種類', exact: true }).selectOption('file')
   await page.getByLabel('販売するファイル', { exact: true }).setInputFiles({ name: 'sample-code.txt', mimeType: 'text/plain', buffer: Buffer.from(code) })
   await page.getByLabel('商品写真（任意）', { exact: true }).setInputFiles({ name: 'gift-photo.png', mimeType: 'image/png', buffer: image })
@@ -463,7 +471,7 @@ test('an existing reserved lottery file can add, replace and remove its photo wi
   const image = await readFile('public/icons/mango-fx-192.png')
   await page.goto('/')
   await login(page, developer)
-  await page.getByRole('button', { name: 'ショップ管理', exact: true }).click()
+  await openAdmin(page)
   let previousPath: string | null = null
   for (const filename of ['first.png', 'replacement.png']) {
     await card(page).getByRole('button', { name: '編集する', exact: true }).click()
@@ -499,7 +507,7 @@ test('an older project can still register private files while optional product p
   server.productImagesReady = false
   await page.goto('/')
   await login(page, developer)
-  await page.getByRole('button', { name: 'ショップ管理', exact: true }).click()
+  await openAdmin(page)
   await page.getByRole('combobox', { name: '商品の種類', exact: true }).selectOption('file')
   await expect(page.getByLabel('商品写真（任意）', { exact: true })).toBeDisabled()
   await expect(page.getByText('商品写真の設定待ちです。設定が完了すると写真を追加できます。', { exact: true })).toBeVisible()

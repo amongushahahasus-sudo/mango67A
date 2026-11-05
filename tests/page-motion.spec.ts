@@ -81,7 +81,6 @@ async function stubShop(page: Page) {
 test('the old page slides out before content changes, then the new page slides in', async ({ page }) => {
   await recordPageMotion(page)
   await page.goto('/')
-  await go(page, '相場を一時停止')
   await page.getByRole('button', { name: '買い注文を出す', exact: true }).scrollIntoViewIfNeeded()
   await hold(page, true)
   await go(page, '学習ガイド')
@@ -122,7 +121,6 @@ test('rapid navigation before and after commit keeps only the latest target and 
   await stubShop(page)
   await page.goto('/')
   await observeCommits(page)
-  await go(page, '相場を一時停止')
   await go(page, '0.1 lot')
   await go(page, '買い注文を出す')
   await go(page, '指値')
@@ -131,7 +129,7 @@ test('rapid navigation before and after commit keeps only the latest target and 
   await expect(page.getByRole('button', { name: '取消', exact: true })).toBeVisible()
   await page.getByRole('spinbutton', { name: '取引数量（lot）', exact: true }).fill('0.5')
   await expect.poll(async () => JSON.parse((await storedPractice(page))!).account.orders.length).toBe(1)
-  const before = await storedPractice(page)
+  const before = JSON.parse((await storedPractice(page))!).account
   await go(page, 'チャートを拡大')
   await expect(page.locator('.chart-is-expanded')).toBeVisible()
   await hold(page, true)
@@ -156,7 +154,7 @@ test('rapid navigation before and after commit keeps only the latest target and 
   await expect(page.getByRole('button', { name: '取消', exact: true })).toBeVisible()
   await page.getByRole('tab', { name: /建玉/ }).click()
   await expect(page.getByRole('button', { name: 'USD / JPYの買い建玉を決済', exact: true })).toBeVisible()
-  expect(await storedPractice(page)).toBe(before)
+  expect(JSON.parse((await storedPractice(page))!).account).toEqual(before)
   expect((await motions(page)).some(value => value.cancelled)).toBe(true)
   await page.getByRole('button', { name: 'チャートを拡大', exact: true }).click()
   const expanded = page.locator('.chart-is-expanded')
@@ -178,7 +176,6 @@ test('returning to the current page while it is exiting cancels the pending repl
   await recordPageMotion(page)
   await page.goto('/')
   await observeCommits(page)
-  await go(page, '相場を一時停止')
   await hold(page, true)
   await go(page, '学習ガイド')
   expect(await halfway(page, 'mango-page-exit')).toBeLessThan(-1)
@@ -192,7 +189,6 @@ test('returning to the current page while it is exiting cancels the pending repl
 test('theme changes and market updates do not replay page movement', async ({ page }) => {
   await recordPageMotion(page)
   await page.goto('/')
-  await go(page, '相場を一時停止')
   await go(page, '学習ガイド')
   await settled(page, 'learn')
   expect(await motions(page)).toHaveLength(2)
@@ -202,19 +198,16 @@ test('theme changes and market updates do not replay page movement', async ({ pa
   expect(await motions(page)).toHaveLength(2)
   await go(page, 'トレード')
   await settled(page, 'trade')
-  await go(page, '相場を再生')
   const count = (await motions(page)).length
   const before = await lastMarketTime(page)
   await expect.poll(() => lastMarketTime(page), { timeout: 7000 }).not.toBe(before)
   expect(await motions(page)).toHaveLength(count)
-  await go(page, '相場を一時停止')
 })
 
 test('reduced motion is immediate and enabling it during an exit settles the latest request', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await recordPageMotion(page)
   await page.goto('/')
-  await go(page, '相場を一時停止')
   await go(page, '学習ガイド')
   await settled(page, 'learn')
   expect(await motions(page)).toEqual([])
@@ -231,9 +224,10 @@ test('reduced motion is immediate and enabling it during an exit settles the lat
 test('history navigation reaches its selected section after commit and cancelled history cannot scroll another page', async ({ page }) => {
   await recordPageMotion(page)
   await page.goto('/')
-  await go(page, '相場を一時停止')
   await go(page, '買い注文を出す')
   await go(page, 'USD / JPYの買い建玉を決済')
+  await expect.poll(async () => JSON.parse((await storedPractice(page))!).account.history.length).toBe(1)
+  const history = JSON.parse((await storedPractice(page))!).account.history
   await go(page, '学習ガイド')
   await settled(page, 'learn')
   await hold(page, true)
@@ -250,7 +244,9 @@ test('history navigation reaches its selected section after commit and cancelled
   await expect(page.getByRole('tab', { name: /取引履歴/ })).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByRole('region', { name: '取引管理', exact: true })).toBeInViewport()
   expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
-  await expect(page.getByRole('region', { name: '取引管理', exact: true }).getByRole('cell', { name: '−¥30', exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: '取引管理', exact: true }).locator('tbody tr')).toHaveCount(1)
+  await expect(page.getByRole('region', { name: '取引管理', exact: true }).getByRole('cell', { name: /¥/ })).toBeVisible()
+  expect(JSON.parse((await storedPractice(page))!).account.history).toEqual(history)
 })
 
 test('navigation and order entry still work without the animation API', async ({ page }) => {
@@ -258,7 +254,6 @@ test('navigation and order entry still work without the animation API', async ({
   page.on('pageerror', error => errors.push(error.message))
   await page.addInitScript(() => Object.defineProperty(Element.prototype, 'animate', { configurable: true, writable: true, value: undefined }))
   await page.goto('/')
-  await go(page, '相場を一時停止')
   await go(page, '学習ガイド')
   await settled(page, 'learn')
   await go(page, 'トレード')

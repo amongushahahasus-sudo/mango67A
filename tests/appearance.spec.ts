@@ -26,15 +26,18 @@ async function chooseMode(page: Page, name: 'ライト' | 'ダーク' | '時間�
   await menu.getByRole('group', { name: '表示モードを選択', exact: true }).getByRole('button', { name, exact: true }).click()
 }
 
-async function pause(page: Page) {
-  await page.getByRole('button', { name: '相場を一時停止', exact: true }).click()
+async function freezeMarketClock(page: Page) {
+  const instant = new Date('2026-11-05T12:00:00Z')
+  await page.clock.install({ time: new Date(instant.getTime() - 60_000) })
+  await page.clock.pauseAt(instant)
 }
 
-test('glass is optional, persists independently, and does not change a paused trade', async ({ page }) => {
+test('glass is optional, persists independently, and does not change an existing trade', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
+  await freezeMarketClock(page)
   await page.goto('/')
-  await pause(page)
+  await page.clock.runFor(100)
   await expect(page.locator('html')).toHaveAttribute('data-interface-style', 'standard')
   expect(await page.evaluate(key => localStorage.getItem(key), styleKey)).toBeNull()
   const normalMenu = await openPicker(page)
@@ -89,7 +92,6 @@ test('saved glass works with automatic time changes and keeps the existing sched
   await page.goto('/')
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   await expect(page.locator('html')).toHaveAttribute('data-interface-style', 'glass')
-  await pause(page)
   await page.clock.fastForward(10_000)
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
   await expect(page.locator('html')).toHaveAttribute('data-interface-style', 'glass')
@@ -130,7 +132,6 @@ test('blocked style storage applies the choice temporarily and leaves palette sa
     }
   }, styleKey)
   await page.goto('/')
-  await pause(page)
   const menu = await chooseStyle(page, 'ガラス調')
   await expect(page.locator('html')).toHaveAttribute('data-interface-style', 'glass')
   await expect(menu.getByRole('alert')).toContainText('デザイン設定を保存できません')
@@ -145,7 +146,6 @@ test('blocked style storage applies the choice temporarily and leaves palette sa
 test('the glass picker and settings remain usable at a narrow short viewport', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 })
   await page.goto('/')
-  await pause(page)
   const menu = await chooseStyle(page, 'ガラス調')
   await expect(menu.getByRole('button', { name: '通常', exact: true })).toBeInViewport()
   await expect(menu.getByRole('button', { name: 'ガラス調', exact: true })).toBeInViewport()
@@ -172,7 +172,6 @@ test('the glass picker and settings remain usable at a narrow short viewport', a
 
 test('glass menus preserve trading colors and account-dialog interaction in both palettes', async ({ page }) => {
   await page.goto('/')
-  await pause(page)
   await chooseStyle(page, 'ガラス調')
   await page.keyboard.press('Escape')
   for (const mode of ['ライト', 'ダーク'] as const) {

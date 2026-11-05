@@ -27,7 +27,7 @@ function nameOf(user: User): string {
   return typeof value === 'string' && value.trim() ? value.trim().slice(0,40) : user.email?.split('@')[0] || 'マイアカウント'
 }
 function importantChange(a: SavedState | null, b: SavedState): boolean {
-  return !a || a.account !== b.account || a.pair !== b.pair || a.scenario !== b.scenario || a.timeframe !== b.timeframe || a.speed !== b.speed || a.paused !== b.paused
+  return !a || a.account !== b.account || a.pair !== b.pair || a.scenario !== b.scenario || a.timeframe !== b.timeframe || a.speed !== b.speed
 }
 function errorText(error: unknown): string {
   return error instanceof Error && error.message ? error.message : 'クラウドに接続できませんでした。通信を確認して、もう一度お試しください。'

@@ -23,10 +23,9 @@ async function ready(page: Page, path = '/') {
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller), { timeout: 15000 }).toBe(true)
   await expect(page.locator('.pwa-status')).toHaveAttribute('title', /保存が完了/)
 }
-async function pause(page: Page) {
-  const pauseButton = page.getByRole('button', { name: '相場を一時停止', exact:true })
-  if (await pauseButton.isVisible()) await pauseButton.click()
-}
+const practiceKey = 'mango-fx-simulator-v1'
+const lastMarketTime = (page: Page) => page.evaluate(key => JSON.parse(localStorage.getItem(key)!).markets.USDJPY.at(-1).time, practiceKey)
+const tradeHistory = (page: Page) => page.evaluate(key => JSON.parse(localStorage.getItem(key)!).account.history, practiceKey)
 
 test('manifest, icons and Chromium installability requirements', async ({ installableContext: context }) => {
   const page = await context.newPage()
@@ -46,7 +45,6 @@ test('offline launch, market trade, close and persisted history', async ({ page,
   const errors: string[] = []
   page.on('pageerror',error=>errors.push(error.message))
   await ready(page)
-  await pause(page)
   await page.getByRole('button',{name:/^表示モード（/}).click()
   await page.getByRole('button',{name:'ダーク',exact:true}).click()
   await context.setOffline(true)
@@ -55,16 +53,24 @@ test('offline launch, market trade, close and persisted history', async ({ page,
   await expect(page.locator('.panel').first()).toHaveCSS('background-color','rgb(16, 23, 34)')
   await expect(page.getByRole('heading',{name:/^(おはようございます|こんにちは|こんばんは)。$/})).toBeVisible()
   await expect(page.locator('.pwa-status')).toContainText('オフライン')
+  await expect(page.getByRole('button',{name:/^相場を(一時停止|再生)$/})).toHaveCount(0)
+  const marketTime = await lastMarketTime(page)
+  await expect.poll(() => lastMarketTime(page), { timeout: 7000 }).toBeGreaterThan(marketTime)
   await page.getByRole('button',{name:'買い注文を出す',exact:true}).click()
   await page.getByRole('button',{name:'USD / JPYの買い建玉を決済',exact:true}).click()
   await page.getByRole('tab',{name:/取引履歴/}).click()
-  await expect(page.getByRole('region',{name:'取引管理'}).getByRole('cell',{name:'−¥30',exact:true})).toBeVisible()
+  const historyRow = page.getByRole('region',{name:'取引管理'}).getByRole('row').nth(1)
+  await expect(historyRow).toBeVisible()
+  const historyText = await historyRow.innerText()
+  const history = await tradeHistory(page)
+  expect(history).toHaveLength(1)
   await page.getByRole('button',{name:/^表示モード（/}).click()
   await page.getByRole('button',{name:'ライト',exact:true}).click()
   await page.reload()
   await expect(page.locator('html')).toHaveAttribute('data-theme','light')
   await page.getByRole('tab',{name:/取引履歴/}).click()
-  await expect(page.getByRole('region',{name:'取引管理'}).getByRole('cell',{name:'−¥30',exact:true})).toBeVisible()
+  await expect(historyRow).toHaveText(historyText, { useInnerText: true })
+  expect(await tradeHistory(page)).toEqual(history)
   expect(errors).toEqual([])
 })
 
@@ -75,7 +81,6 @@ test('subdirectory deployment caches and launches within its own scope', async (
   const client = await context.newCDPSession(page)
   const result = await client.send('Page.getInstallabilityErrors')
   expect(result.installabilityErrors).toEqual([])
-  await pause(page)
   await context.setOffline(true)
   await page.reload()
   await expect(page.getByRole('button',{name:'買い注文を出す',exact:true})).toBeVisible()
@@ -85,7 +90,6 @@ test('subdirectory deployment caches and launches within its own scope', async (
 
 test('update waits for consent and preserves account after activation', async ({ page, request }) => {
   await ready(page)
-  await pause(page)
   await page.getByRole('button',{name:/^表示モード（/}).click()
   await page.getByRole('button',{name:'ダーク',exact:true}).click()
   await page.getByRole('button',{name:'買い注文を出す',exact:true}).click()
