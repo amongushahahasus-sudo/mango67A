@@ -131,6 +131,27 @@ test('OAuth callback failures remain actionable on a browser without tutorial hi
   await expect(page.getByRole('dialog')).toHaveCount(0)
 })
 
+test('quickly closing replay restores the visible menu opener while the sidebar is still closing', async ({ page }) => {
+  await backend(page)
+  await page.setViewportSize({ width: 320, height: 780 })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'チュートリアルを閉じる', exact: true }).click()
+  const menu = page.getByRole('button', { name: 'メニューを開く', exact: true })
+  const sidebar = page.getByRole('complementary', { name: 'メインナビゲーション', exact: true })
+  // Hold only the closing transition so the old trigger still overlaps the
+  // viewport when focus restoration runs. Opening retains the real duration.
+  await page.addStyleTag({ content: '.sidebar:not(.mobile-open) { transition: transform 10s linear !important; }' })
+  await menu.click()
+  await expect(sidebar).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)')
+  await page.getByRole('button', { name: 'チュートリアル', exact: true }).click()
+  await expect(page.getByRole('dialog').getByRole('heading', { name: 'MANGO FXへようこそ。', exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(sidebar).not.toHaveClass(/mobile-open/)
+  expect(await sidebar.evaluate(element => element.getBoundingClientRect().right)).toBeGreaterThan(0)
+  await expect(menu).toBeFocused()
+})
+
 test('password recovery opens its existing form instead of the first-visit guide', async ({ page }) => {
   await backend(page)
   await page.addInitScript(() => localStorage.setItem('mango-fx-auth-v1:testproject.supabase.co:/-code-verifier', JSON.stringify('tutorial-fixture-verifier/recovery')))
