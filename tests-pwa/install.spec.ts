@@ -69,7 +69,7 @@ test('offline launch, market trade, close and persisted history', async ({ page,
   await page.reload()
   await expect(page.locator('html')).toHaveAttribute('data-theme','light')
   await page.getByRole('tab',{name:/取引履歴/}).click()
-  await expect(historyRow).toHaveText(historyText)
+  await expect(historyRow).toHaveText(historyText, { useInnerText: true })
   expect(await tradeHistory(page)).toEqual(history)
   expect(errors).toEqual([])
 })

@@ -41,7 +41,7 @@ try {
   await page.reload()
   assert.equal(await page.locator('html').getAttribute('data-interface-style'), 'glass')
   await page.getByRole('tab', { name: /取引履歴/ }).click()
-  await expect(historyRow).toHaveText(historyText)
+  await expect(historyRow).toHaveText(historyText, { useInnerText: true })
   assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('mango-fx-simulator-v1')).account.history), history)
   const downloaded = page.waitForEvent('download')
   await page.getByRole('button', { name: '取引履歴をCSV出力', exact: true }).click()
