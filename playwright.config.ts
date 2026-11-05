@@ -6,6 +6,7 @@ export default defineConfig({
   retries: 0,
   use: {
     baseURL: 'http://127.0.0.1:5173',
+    storageState: { cookies: [], origins: [{ origin: 'http://127.0.0.1:5173', localStorage: [{ name: 'mango-fx-onboarding-v1', value: 'completed' }] }] },
     headless: true,
     launchOptions: {
       executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium',

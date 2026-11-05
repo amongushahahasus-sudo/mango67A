@@ -8,6 +8,7 @@ import './AccountMenu.css'
 interface AccountMenuProps {
   syncLabel?: string
   signInRequest?: number
+  signUpRequest?: number
   onBeforeSignOut?: () => Promise<void>
   onImportGuest?: () => void
   canImportGuest?: boolean
@@ -19,7 +20,7 @@ function GoogleMark() {
   return <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285f4" d="M21.8 12.2c0-.7-.1-1.5-.2-2.2H12v4.2h5.5a4.8 4.8 0 0 1-2.1 3.1v2.8h3.5c2-1.8 2.9-4.5 2.9-7.9Z"/><path fill="#34a853" d="M12 22c2.7 0 5-.9 6.9-2.5l-3.5-2.8c-.9.6-2 1-3.4 1-2.6 0-4.8-1.7-5.6-4.1H2.8v2.9A10 10 0 0 0 12 22Z"/><path fill="#fbbc05" d="M6.4 13.6a6 6 0 0 1 0-3.2V7.5H2.8a10 10 0 0 0 0 9l3.6-2.9Z"/><path fill="#ea4335" d="M12 6.3c1.5 0 2.8.5 3.8 1.5L19 4.6A9.8 9.8 0 0 0 12 2a10 10 0 0 0-9.2 5.5l3.6 2.9A6 6 0 0 1 12 6.3Z"/></svg>
 }
 
-export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest, canImportGuest = false, signInRequest = 0 }: AccountMenuProps) {
+export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest, canImportGuest = false, signInRequest = 0, signUpRequest = 0 }: AccountMenuProps) {
   const auth = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const [mode, setMode] = useState<Mode>(null)
@@ -35,6 +36,7 @@ export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest,
   const dialogRef = useRef<HTMLDivElement>(null)
   const lastUserId = useRef(auth.user?.id || null)
   const lastSignInRequest = useRef(signInRequest)
+  const lastSignUpRequest = useRef(signUpRequest)
   const titleId = useId()
   const emailId = useId()
   const passwordId = useId()
@@ -51,6 +53,11 @@ export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest,
     lastSignInRequest.current = signInRequest
     if (!auth.user) openMode('signin')
   }, [signInRequest, auth.user?.id])
+  useEffect(() => {
+    if (lastSignUpRequest.current === signUpRequest) return
+    lastSignUpRequest.current = signUpRequest
+    if (!auth.user) openMode(auth.emailRegistrationReady ? 'signup' : 'signin')
+  }, [signUpRequest, auth.user?.id, auth.emailRegistrationReady])
   useEffect(() => {
     const nextId = auth.user?.id || null
     if (lastUserId.current !== nextId) {
@@ -167,6 +174,7 @@ export default function AccountMenu({ syncLabel, onBeforeSignOut, onImportGuest,
       <span className="account-eyebrow">MANGO FX · YOUR OWN JOURNEY</span>
       <h2 id={titleId}>{title}</h2>
       <p className="account-dialog-description">{mode === 'signin' ? 'ログインして、前回の続きから始めましょう。' : mode === 'signup' ? '取引の経験を、自分のアカウントに残せます。' : mode === 'reset' ? '登録したメールアドレスに、再設定用リンクを送ります。' : mode === 'recovery' ? '他のサービスと異なるパスワードを設定しましょう。' : mode === 'confirm' ? '確認メール内のリンクを開くと、メールアドレスの確認が完了します。' : mode === 'reset-sent' ? '登録されているメールアドレスの場合、再設定用メールが届きます。メール内のリンクから設定してください。' : '未同期の練習データは、この端末に残ります。別の端末からは、最後に同期した時点のデータを利用できます。'}</p>
+      {mode === 'signup' && <p className="account-dialog-description">ランキングには、自動生成のトレーダー名と同期済みの確定損益が表示されます。メールアドレスや本名は公開しません。</p>}
       {(mode === 'signin' || mode === 'signup') && <><button type="button" className="account-google-button" onClick={() => { void google() }} disabled={busy}><GoogleMark />Googleで{mode === 'signup' ? '登録 / ログイン' : 'ログイン'}</button><div className="account-divider"><span />またはメールアドレスで<span /></div><div className="account-mode-tabs"><button type="button" className={mode === 'signin' ? 'active' : ''} onClick={() => openMode('signin')} disabled={busy}>ログイン</button><button type="button" className={mode === 'signup' ? 'active' : ''} onClick={() => openMode('signup')} disabled={busy || !auth.emailRegistrationReady} title={auth.emailRegistrationReady ? undefined : 'メールでの新規登録は準備中です'}>新規登録</button></div>{!auth.emailRegistrationReady && <p className="account-email-readiness" role="note">メールでの新規登録とパスワード再設定は準備中です。Googleでログインできます。</p>}</>}
       {isForm && <form className="account-form" onSubmit={event => { void submit(event) }} noValidate>
         {mode === 'signup' && <label htmlFor={nameId}>表示名 <span>任意</span><input id={nameId} type="text" autoComplete="nickname" maxLength={40} placeholder="例：マンゴー" value={displayName} onChange={event => setDisplayName(event.target.value)} disabled={busy} /></label>}

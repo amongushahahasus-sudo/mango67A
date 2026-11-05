@@ -7,6 +7,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', args: ['--no-sandbox', '--disable-dev-shm-usage'] })
 try {
   const context = await browser.newContext({ offline: true })
+  // This smoke test starts after the separately tested first-visit tutorial.
+  await context.addInitScript(() => localStorage.setItem('mango-fx-onboarding-v1', 'completed'))
   const page = await context.newPage()
   // Managed cloud Chromium blocks file:// by policy. Fulfill the identical
   // single HTML from disk with networking disabled; no server/assets are used.
@@ -31,5 +33,25 @@ try {
   assert.equal((await downloaded).suggestedFilename(), 'mango-fx-trades.csv')
   assert.deepEqual(errors, [])
   assert.deepEqual(requests, [])
-  console.log('PASS: standalone document runs with networking disabled, trades and closes, persists on reload, exports CSV, and loads no external assets. Direct file:// navigation is blocked by managed cloud Chromium policy and was not verified here.')
+  // A separate fresh browser also gets the actual offline welcome flow.
+  const firstVisit = await browser.newContext({ offline: true })
+  const welcomePage = await firstVisit.newPage()
+  await welcomePage.route(documentUrl, route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: html }))
+  welcomePage.on('pageerror', error => errors.push(error.message))
+  welcomePage.on('request', request => { if (/^https?:/.test(request.url()) && request.url() !== documentUrl) requests.push(request.url()) })
+  await welcomePage.goto(documentUrl)
+  await welcomePage.getByRole('heading', { name: 'MANGO FXへようこそ。', exact: true }).waitFor()
+  const tutorial = welcomePage.getByRole('dialog')
+  for (let step = 0; step < 10 && await tutorial.getByRole('button', { name: '次へ', exact: true }).count(); step += 1) await tutorial.getByRole('button', { name: '次へ', exact: true }).click()
+  assert.equal(await tutorial.getByRole('button', { name: '会員登録へ進む', exact: true }).count(), 0)
+  await tutorial.getByRole('button', { name: 'ゲストで始める', exact: true }).click()
+  assert.equal(await welcomePage.getByRole('dialog').count(), 0)
+  assert.equal(await welcomePage.evaluate(() => localStorage.getItem('mango-fx-onboarding-v1')), 'completed')
+  await welcomePage.reload()
+  await welcomePage.getByRole('button', { name: '買い注文を出す', exact: true }).waitFor()
+  assert.equal(await welcomePage.getByRole('dialog').count(), 0)
+  await firstVisit.close()
+  assert.deepEqual(errors, [])
+  assert.deepEqual(requests, [])
+  console.log('PASS: standalone document runs with networking disabled, first-visit tutorial can finish as a guest, trades and closes, persists on reload, exports CSV, and loads no external assets. Direct file:// navigation is blocked by managed cloud Chromium policy and was not verified here.')
 } finally { await browser.close() }
