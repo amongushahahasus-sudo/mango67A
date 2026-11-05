@@ -1,6 +1,7 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createSavedState } from '../src/lib/practiceState'
+import { useFixedMarketPrices } from './market-fixture'
 const alice = '11111111-1111-4111-8111-111111111111'
 const bob = '22222222-2222-4222-8222-222222222222'
 const developer = '33333333-3333-4333-8333-333333333333'
@@ -41,7 +42,7 @@ type PracticeRow = {
   revision: number
   updated_at: string
 }
-const practice = (): PracticeRow => { const state = createSavedState(); state.account.balance = 1005000; state.paused = true; return { state, revision: 1, updated_at: stamp }; }
+const practice = (): PracticeRow => { const state = createSavedState(); state.account.balance = 1005000; return { state, revision: 1, updated_at: stamp }; }
 function session(id: string) {
   const b64 = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url')
   return { access_token: `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: id, aud: 'authenticated', role: 'authenticated', exp: Math.floor(Date.now() / 1000) + 3600 })}.fixture`, token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: `fixture-${id}`, user: users[id] }
@@ -53,6 +54,7 @@ catch {
   return null
 } }
 async function backend(page: Page) {
+  await useFixedMarketPrices(page)
   const photoBytes = await readFile('public/icons/mango-fx-192.png')
   const server = {
     rows: { [alice]: practice(), [bob]: practice(), [developer]: practice() } as Record<string, PracticeRow>,

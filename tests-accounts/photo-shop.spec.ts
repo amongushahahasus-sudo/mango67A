@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test'
 import type { Page, Route } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { createSavedState } from '../src/lib/practiceState'
+import { useFixedMarketPrices } from './market-fixture'
 
 const alice = '11111111-1111-4111-8111-111111111111'
 const developer = '33333333-3333-4333-8333-333333333333'
@@ -21,7 +22,6 @@ type Purchase = { price: number; at: string }
 function practice(balance: number): PracticeRow {
   const state = createSavedState()
   state.account.balance = balance
-  state.paused = true
   return { state, revision: 1, updated_at: time }
 }
 function session(id: UserId) {
@@ -35,6 +35,7 @@ function identity(route: Route): string | null {
 }
 
 async function backend(page: Page) {
+  await useFixedMarketPrices(page)
   const image = await readFile('public/icons/mango-fx-192.png')
   const server = {
     rows: { [alice]: practice(1_005_000), [developer]: practice(1_020_000) } as Record<string, PracticeRow>,

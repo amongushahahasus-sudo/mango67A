@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowDownLeft, ArrowRight, ArrowUpRight, BarChart3, BookOpen, Check, ChevronRight, CircleHelp, Compass, ShoppingBag, Clock3, Download, Expand, Gauge, History, Info, LayoutDashboard, Menu, Pause, Play, Plus, RotateCcw, Settings2, ShieldCheck, Sparkles, TrendingUp, Trophy, Wallet, X } from 'lucide-react'
+import { ArrowDownLeft, ArrowRight, ArrowUpRight, BarChart3, BookOpen, Check, ChevronRight, CircleHelp, Compass, ShoppingBag, Clock3, Download, Expand, Gauge, History, Info, LayoutDashboard, Menu, Plus, RotateCcw, Settings2, ShieldCheck, Sparkles, TrendingUp, Trophy, Wallet, X } from 'lucide-react'
 import PriceChart from './components/PriceChart'
 import InstallApp from './components/InstallApp'
 import PwaStatus from './components/PwaStatus'
@@ -68,7 +68,10 @@ export interface AppProps {
   onRequestRegister?: () => void
 }
 export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onStateChange, accountControl, accountStatus, accountNotice, userLabel, onBeforePhotoPurchase, onRequestLogin, onRequestRegister }: AppProps = {}) {
-  const [state, setState] = useState<SavedState>(() => initialState ?? loadSavedState(storageKey))
+  const [state, setState] = useState<SavedState>(() => {
+    const restored = initialState ?? loadSavedState(storageKey)
+    return restored.paused ? { ...restored, paused: false } : restored
+  })
   const [view, setView] = useState<View>('trade')
   const page = useRef<HTMLElement>(null)
   const pageStage = useRef<HTMLDivElement>(null)
@@ -124,7 +127,6 @@ export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onSt
   }, [state, storageKey, onStateChange])
   useEffect(() => { if (!toast) return; const id = window.setTimeout(() => setToast(null), 5500); return () => clearTimeout(id) }, [toast])
   useEffect(() => {
-    if (state.paused) return
     const id = window.setInterval(() => {
       setState(prev => {
         const markets = Object.fromEntries(pairs.map(pair => [pair, [...prev.markets[pair], nextCandle(prev.markets[pair].at(-1)!, pair, prev.scenario)].slice(-1440)])) as SavedState['markets']
@@ -140,7 +142,7 @@ export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onSt
       })
     }, 2000 / state.speed)
     return () => clearInterval(id)
-  }, [state.paused, state.speed])
+  }, [state.speed])
   useEffect(() => {
     if (state.marketEvent && state.marketEvent.id !== marketEventRef.current) {
       marketEventRef.current = state.marketEvent.id
@@ -253,7 +255,7 @@ export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onSt
         <section className="page-heading"><div><div className="eyebrow"><span className="tiny-dot" /> YOUR NEXT CHAPTER STARTS HERE</div><h1>{view === 'trade' ? <HomeGreeting /> : view === 'learn' ? <>FXを知る。<span>自信に変える。</span></> : view === 'shop' ? <>練習の成果を、<span>ごほうびに。</span></> : view === 'ranking' ? <>みんなの、<span>練習ランキング。</span></> : <>商品の登録と、<span>管理を。</span></>}</h1><p>{view === 'trade' ? '仮想資金100万円で、相場と向き合う練習を。' : view === 'learn' ? 'はじめの一歩から、取引を振り返るところまで。' : view === 'shop' ? '仮想利益で、写真やコード入りファイルを選べます。' : view === 'ranking' ? '登録者の確定損益を、プラスとマイナスで表示します。' : '商品の登録・価格・公開状態を管理します。'}</p></div><div className="simulation-label"><ShieldCheck size={17} /><div><strong>練習だけに、集中できる。</strong><span>登録不要 · 実際の資金は使いません</span></div></div></section>
         {accountNotice}
         {saveFailed && <div className="notice-banner" role="alert"><Info size={17} />このブラウザでは進捗を保存できません。ページを閉じると現在の取引が失われます。</div>}
-        {view === 'ranking' ? <Leaderboard key={user?.id ?? 'guest'} userId={user?.id ?? null} onBeforeLoad={onBeforePhotoPurchase} onRequestLogin={onRequestLogin} /> : view === 'shop' || view === 'admin' ? <PhotoShop key={`${user?.id ?? 'guest'}:${view}`} mode={view} userId={user?.id ?? null} onBeforePurchase={onBeforePhotoPurchase} onRoleChange={setShopRole} onRequestLogin={onRequestLogin} /> : view === 'learn' ? <section className="learn-page"><div className="learn-hero"><div className="learn-icon"><BookOpen size={32} /></div><div><span className="eyebrow">THE BASICS</span><h2>しくみがわかると、取引が変わる。</h2><p>4つのポイントを押さえて、小さな数量から試してみましょう。</p></div></div><div className="lesson-grid">{guideSteps.map((step, index) => <article className="lesson-card" key={step.title}><div className="lesson-top"><step.icon size={25} /><span>0{index+1}</span></div><h3>{step.title}</h3><p>{step.text}</p></article>)}</div><div className="panel assumptions"><h3><Info size={18} />このシミュレーターの取引ルール</h3><p>価格はモデルが生成する練習用データで、実際の為替レートではありません。初期資金100万円、レバレッジ25倍、1 lot＝1万通貨。スプレッドは固定で、取引手数料・スワップ・税金は計算に含みません。EUR/USDの損益はUSD/JPYで円換算します。</p><p>相場は2秒で1分進みます（通常速度）。停止中でも注文・決済できます。指値・逆指値、利確・損切りは各更新時の売買可能なBid/Askで判定し、その時のレートで約定します。待機注文の証拠金は約定時に確認し、不足する注文はキャンセルされます。実際の市場の流動性や通信遅延は再現しません。</p><button className="primary-button" onClick={() => navigateTo('trade')}>トレードを始める<ArrowRight size={17} /></button></div></section> : <>
+        {view === 'ranking' ? <Leaderboard key={user?.id ?? 'guest'} userId={user?.id ?? null} onBeforeLoad={onBeforePhotoPurchase} onRequestLogin={onRequestLogin} /> : view === 'shop' || view === 'admin' ? <PhotoShop key={`${user?.id ?? 'guest'}:${view}`} mode={view} userId={user?.id ?? null} onBeforePurchase={onBeforePhotoPurchase} onRoleChange={setShopRole} onRequestLogin={onRequestLogin} /> : view === 'learn' ? <section className="learn-page"><div className="learn-hero"><div className="learn-icon"><BookOpen size={32} /></div><div><span className="eyebrow">THE BASICS</span><h2>しくみがわかると、取引が変わる。</h2><p>4つのポイントを押さえて、小さな数量から試してみましょう。</p></div></div><div className="lesson-grid">{guideSteps.map((step, index) => <article className="lesson-card" key={step.title}><div className="lesson-top"><step.icon size={25} /><span>0{index+1}</span></div><h3>{step.title}</h3><p>{step.text}</p></article>)}</div><div className="panel assumptions"><h3><Info size={18} />このシミュレーターの取引ルール</h3><p>価格はモデルが生成する練習用データで、実際の為替レートではありません。初期資金100万円、レバレッジ25倍、1 lot＝1万通貨。スプレッドは固定で、取引手数料・スワップ・税金は計算に含みません。EUR/USDの損益はUSD/JPYで円換算します。</p><p>相場は自動で進み、通常速度では2秒で1分進みます。指値・逆指値、利確・損切りは各更新時の売買可能なBid/Askで判定し、その時のレートで約定します。待機注文の証拠金は約定時に確認し、不足する注文はキャンセルされます。実際の市場の流動性や通信遅延は再現しません。</p><button className="primary-button" onClick={() => navigateTo('trade')}>トレードを始める<ArrowRight size={17} /></button></div></section> : <>
           <section className="account-grid" aria-label="口座状況">
             <article className="stat-card"><div className="stat-top"><span>純資産</span><Wallet size={16} /></div><div className="stat-value">{yen(metrics.equity)}</div><div className="stat-caption"><span className={totalPnl >= 0 ? 'text-up' : 'text-down'}>{totalPnl >= 0 ? <ArrowUpRight size={13} /> : <ArrowDownLeft size={13} />}{yen(totalPnl, true)}</span><span>開始時から</span></div></article>
             <article className="stat-card"><div className="stat-top"><span>評価損益</span><TrendingUp size={16} /></div><div className={`stat-value ${metrics.unrealizedPnl >= 0 ? 'text-up' : 'text-down'}`}>{yen(metrics.unrealizedPnl, true)}</div><div className="stat-caption">保有中の建玉 <strong>{state.account.positions.length}</strong> 件</div></article>
@@ -262,7 +264,7 @@ export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onSt
           </section>
 
           <section className="market-section" aria-label="マーケット">
-            <div className="section-heading"><h2>マーケット <span className="section-tag">SIMULATED</span></h2><span className="market-note"><span className={`status-dot ${state.paused ? 'paused' : ''}`} />{state.paused ? '一時停止中' : 'シミュレーション稼働中'}</span></div>
+            <div className="section-heading"><h2>マーケット <span className="section-tag">SIMULATED</span></h2><span className="market-note"><span className="status-dot" />シミュレーション稼働中</span></div>
             <div className="pair-grid">{pairs.map(p => { const up = prices[p] >= state.baseline[p]; const percent = (prices[p] / state.baseline[p] - 1) * 100; return <button key={p} className={`pair-card ${p === pair ? 'selected' : ''}`} aria-pressed={p === pair} onClick={() => selectPair(p)}><div className="pair-top"><CurrencyIcon pair={p} small /><strong>{PAIRS[p].label}</strong><span className="pair-name">{p.startsWith('USD') ? '米ドル' : p.startsWith('EUR') ? 'ユーロ' : '英ポンド'} / {p.endsWith('JPY') ? '円' : '米ドル'}</span>{p === pair && <span className="selected-indicator" />}</div><div className="pair-bottom"><div><div className="pair-price">{rate(prices[p], p)}</div><span className={up ? 'text-up' : 'text-down'}>{up ? '+' : ''}{percent.toFixed(2)}% <span className="since-label">開始比</span></span></div><Sparkline candles={state.markets[p]} positive={up} /></div></button> })}</div>
           </section>
 
@@ -271,7 +273,7 @@ export default function App({ initialState, storageKey = GUEST_STORAGE_KEY, onSt
               <section className="panel chart-panel">
                 <div className="chart-instrument"><div className="instrument-info"><CurrencyIcon pair={pair} /><div><div className="instrument-name">{metadata.label}<span>FX</span></div><span className="instrument-subtitle">{pair.startsWith('USD') ? '米ドル' : pair.startsWith('EUR') ? 'ユーロ' : '英ポンド'} / {pair.endsWith('JPY') ? '日本円' : '米ドル'}</span></div><div className="instrument-price"><strong>{rate(price, pair)}</strong><span className={change >= 0 ? 'text-up' : 'text-down'}>{change >= 0 ? <ArrowUpRight size={13} /> : <ArrowDownLeft size={13} />}{change >= 0 ? '+' : ''}{change.toFixed(2)}%</span></div></div><button className="icon-button" aria-label={chartExpanded ? 'チャートの拡大を終了' : 'チャートを拡大'} onClick={() => setChartExpanded(!chartExpanded)}><Expand size={17} /></button></div>
                 <PriceChart pair={pair} candles={aggregate(state.markets[pair], state.timeframe)} positions={state.account.positions.filter(p => p.pair === pair)} timeframe={state.timeframe} onTimeframeChange={timeframe => setState(s => ({ ...s, timeframe }))} />
-                <div className="playback-bar"><div className="playback-left"><button className={`play-button ${state.paused ? 'paused' : ''}`} aria-label={state.paused ? '相場を再生' : '相場を一時停止'} onClick={() => setState(s => ({ ...s, paused: !s.paused }))}>{state.paused ? <Play size={14} fill="currentColor" /> : <Pause size={14} fill="currentColor" />}</button><div className="speed-control" aria-label="再生速度">{[1,2,5].map(speed => <button className={state.speed === speed ? 'active' : ''} key={speed} onClick={() => setState(s => ({ ...s, speed }))} aria-pressed={state.speed === speed}>×{speed}</button>)}</div><span className="playback-description">2秒 = {state.speed}分</span></div><div className="sim-clock"><Clock3 size={13} /><span>相場内時刻 {time(simTime)}</span><span className="utc-note">JST</span></div></div>
+                <div className="playback-bar"><div className="playback-left"><div className="speed-control" aria-label="相場の進行速度">{[1,2,5].map(speed => <button className={state.speed === speed ? 'active' : ''} key={speed} onClick={() => setState(s => ({ ...s, speed }))} aria-pressed={state.speed === speed}>×{speed}</button>)}</div><span className="playback-description">2秒 = {state.speed}分</span></div><div className="sim-clock"><Clock3 size={13} /><span>相場内時刻 {time(simTime)}</span><span className="utc-note">JST</span></div></div>
               </section>
 
               <section className="panel activity-panel" ref={activityRef} aria-label="取引管理">

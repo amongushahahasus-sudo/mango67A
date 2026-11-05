@@ -5,6 +5,7 @@ export const GUEST_STORAGE_KEY = 'mango-fx-simulator-v1'
 const pairs = Object.keys(PAIRS) as CurrencyPair[]
 const scenarios = ['balanced','bullish','bearish','volatile']
 const pricesOf = (markets: SavedState['markets']): Prices => Object.fromEntries(pairs.map(pair => [pair, markets[pair].at(-1)!.close])) as Prices
+// Keep the legacy paused field for the existing cloud schema; new state always runs.
 export type SavedState = { version: 1; account: Account; markets: Record<CurrencyPair, Candle[]>; baseline: Prices; pair: CurrencyPair; scenario: Scenario; timeframe: Timeframe; speed: number; paused: boolean; marketEvent?: { id: number; text: string } }
 export function createSavedState(): SavedState {
   const markets = Object.fromEntries(pairs.map((pair, i) => [pair, generateInitialCandles(pair, 1440, 42 + i * 99)])) as SavedState['markets']
@@ -20,7 +21,7 @@ export function parseSavedState(value: unknown): SavedState | null {
     const validTimestamp = (value: number) => Number.isFinite(value) && Math.abs(value) <= 8.64e15
     const validTargets = (item: { takeProfit?: number; stopLoss?: number }) => [item.takeProfit,item.stopLoss].every(value => value === undefined || (Number.isFinite(value) && value > 0))
     if (!s.account.positions.every(p => Number.isFinite(p.entryPrice) && p.entryPrice>0 && validTimestamp(p.openedAt) && validTargets(p)) || !s.account.orders.every(o => ['limit','stop'].includes(o.type) && Number.isFinite(o.price) && o.price>0 && validTimestamp(o.createdAt) && validTargets(o)) || !s.account.history.every(t => Number.isFinite(t.pnl) && Number.isFinite(t.entryPrice) && t.entryPrice>0 && Number.isFinite(t.exitPrice) && t.exitPrice>0 && validTimestamp(t.openedAt) && validTimestamp(t.closedAt) && typeof t.reason==='string')) return null
-    return s
+    return s.paused ? { ...s, paused: false } : s
   } catch { return null }
 }
 

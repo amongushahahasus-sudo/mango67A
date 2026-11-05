@@ -26,7 +26,6 @@ async function openTheme(page: Page) {
 
 test('one highlight moves between navigation buttons while the buttons keep keyboard focus', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: '相場を一時停止', exact: true }).click()
   await ready(page)
   await aligned(page, 'trade')
   const originalTop = await marker(page).evaluate(element => element.getBoundingClientRect().top)
@@ -56,7 +55,6 @@ test('one highlight moves between navigation buttons while the buttons keep keyb
 
 test('rapid navigation leaves one highlight at the final requested page', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: '相場を一時停止', exact: true }).click()
   await ready(page)
   for (const key of ['learn', 'ranking', 'trade', 'learn', 'ranking']) await navButton(page, key).click()
   await expect(page.locator('main')).toHaveAttribute('data-page', 'ranking')
@@ -70,7 +68,6 @@ test('rapid navigation leaves one highlight at the final requested page', async 
 
 test('the moving highlight keeps its selected styling in dark, glass and normal designs', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: '相場を一時停止', exact: true }).click()
   await ready(page)
   await navButton(page, 'learn').click()
   await aligned(page, 'learn')
@@ -104,7 +101,6 @@ test('the moving highlight keeps its selected styling in dark, glass and normal 
 
 test('the highlight stays aligned after mobile sidebar scrolling and a desktop resize', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: '相場を一時停止', exact: true }).click()
   await ready(page)
   await page.setViewportSize({ width: 320, height: 568 })
   const menu = page.getByRole('button', { name: 'メニューを開く', exact: true })
@@ -130,7 +126,6 @@ test('the highlight stays aligned after mobile sidebar scrolling and a desktop r
 test('reduced motion updates the highlight immediately without moving keyboard focus away', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/')
-  await page.getByRole('button', { name: '相場を一時停止', exact: true }).click()
   await ready(page)
   const learning = navButton(page, 'learn')
   await learning.focus()

@@ -14,6 +14,17 @@ describe('account state boundaries', () => {
     state.account.balance-=30
     expect(hasPracticeProgress(state)).toBe(true)
   })
+  it('resumes a legacy paused save without resetting its trading data',()=>{
+    const state=createSavedState()
+    state.paused=true
+    state.speed=2
+    state.account.balance=1_012_345
+    state.account.positions.push({id:'held',pair:'USDJPY',side:'buy',units:1000,entryPrice:153,openedAt:1})
+    state.account.orders.push({id:'pending',pair:'EURJPY',side:'buy',units:1000,type:'limit',price:1,createdAt:2})
+    state.account.history.push({id:'closed',pair:'USDJPY',side:'sell',units:1000,entryPrice:154,exitPrice:153,pnl:1000,reason:'manual',openedAt:1,closedAt:2})
+    expect(parseSavedState(state)).toEqual({...state,paused:false})
+    expect(state.paused).toBe(true)
+  })
   it('refuses a corrupted cloud history instead of replacing it with new money',()=>{
     const state=createSavedState()
     state.account.history.push({id:'bad',pair:'USDJPY',side:'buy',units:10000,entryPrice:153,exitPrice:154,pnl:10000,reason:'manual',openedAt:NaN,closedAt:1})

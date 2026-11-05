@@ -98,7 +98,6 @@ main { max-width: 1500px; margin: 0 auto; padding: 34px 34px 0; }
 .stat-caption strong { color: var(--text); font-size: 10px; font-weight: 600; }
 .status-dot { display: inline-block; flex-shrink: 0; background: var(--up); width: 5px; height: 5px; border-radius: 50%; }
 .status-dot.danger { background: var(--down); }
-.status-dot.paused { background: var(--orange); }
 .warning-stat { border-color: #d99b86; }
 .warning-stat .stat-value { color: var(--down); }
 .market-section { margin-bottom: 22px; }
@@ -141,9 +140,6 @@ main { max-width: 1500px; margin: 0 auto; padding: 34px 34px 0; }
 .instrument-price > span { display: inline-flex; align-items: center; font-size: 10px; gap: 2px; }
 .playback-bar { display: flex; align-items: center; justify-content: space-between; padding: 11px 18px; border-top: 1px solid var(--border); gap: 10px; background: #f7f9f2; }
 .playback-left { display: flex; align-items: center; gap: 11px; }
-.play-button { width: 28px; height: 27px; background: #e5eedc; color: var(--lime); border-radius: 5px; display: grid; place-items: center; }
-.play-button:hover { background: #d9e7ce; }
-.play-button.paused { background: #ffe7bf; color: var(--orange-ink); }
 .speed-control { display: flex; align-items: center; gap: 2px; }
 .speed-control button { padding: 4px 7px; color: var(--muted); font-size: 9px; border-radius: 4px; min-height: 24px; }
 .speed-control button.active { color: var(--lime); background: #e5eedc; }

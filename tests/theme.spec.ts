@@ -33,8 +33,9 @@ async function pauseClockAt(page: Page, time: string) {
 test('manual themes persist while an existing trade remains intact', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
+  await pauseClockAt(page, '2026-11-05T12:00:00Z')
   await page.goto('/')
-  await page.getByRole('button', { name: '相場を一時停止', exact: true }).click()
+  await page.clock.runFor(100)
   await expectTheme(page, 'light')
   await page.getByRole('button', { name: '買い注文を出す', exact: true }).click()
   await expect(page.getByRole('button', { name: 'USD / JPYの買い建玉を決済', exact: true })).toBeVisible()
@@ -59,7 +60,6 @@ test('manual themes persist while an existing trade remains intact', async ({ pa
 test('automatic mode changes at both daily boundaries without a reload', async ({ page }) => {
   await pauseClockAt(page, '2026-11-02T06:59:50Z')
   await page.goto('/')
-  await page.getByRole('button', { name: '相場を一時停止', exact: true }).click()
   await chooseMode(page, '時間帯で自動')
   await expectTheme(page, 'dark')
   await page.clock.fastForward(10_000)
@@ -75,7 +75,6 @@ test('automatic mode changes at both daily boundaries without a reload', async (
 test('custom overnight hours are saved, invalid equal hours rejected, manual choice overrides them', async ({ page }) => {
   await pauseClockAt(page, '2026-11-02T20:00:00Z')
   await page.goto('/')
-  await page.getByRole('button', { name: '相場を一時停止', exact: true }).click()
   const settings = await openSettings(page)
   await settings.getByRole('button', { name: '時間帯で自動', exact: true }).click()
   await expectTheme(page, 'dark')

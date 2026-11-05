@@ -53,7 +53,6 @@
 :where(:root[data-theme="dark"]) .empty-stat { color: #e0e6ef; }
 :where(:root[data-theme="dark"]) .stat-caption { color: #77859b; }
 :where(:root[data-theme="dark"]) .stat-caption strong { color: #b9c4d3; }
-:where(:root[data-theme="dark"]) .status-dot.paused { background: #e6b66e; }
 :where(:root[data-theme="dark"]) .warning-stat { border-color: #84464c; }
 :where(:root[data-theme="dark"]) .section-tag { color: #78869b; border: 1px solid #2b3441; }
 :where(:root[data-theme="dark"]) .market-note { color: #7c899c; }
@@ -68,9 +67,6 @@
 :where(:root[data-theme="dark"]) .instrument-subtitle { color: #758197; }
 :where(:root[data-theme="dark"]) .instrument-price { border-left: 1px solid #303949; }
 :where(:root[data-theme="dark"]) .playback-bar { border-top: 1px solid #222c3a; background: #0d141e; }
-:where(:root[data-theme="dark"]) .play-button { background: #1c2836; color: #b5c2d2; }
-:where(:root[data-theme="dark"]) .play-button:hover { background: #2e3d4e; }
-:where(:root[data-theme="dark"]) .play-button.paused { background: #d5f78b18; color: var(--lime); }
 :where(:root[data-theme="dark"]) .speed-control button { color: #718098; }
 :where(:root[data-theme="dark"]) .speed-control button.active { color: #d9e2ed; background: #273141; }
 :where(:root[data-theme="dark"]) .speed-control button:hover { color: #fff; }

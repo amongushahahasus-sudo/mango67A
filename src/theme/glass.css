@@ -73,18 +73,17 @@
 }
 
 /* Neutral controls take a translucent fill; intent-coloured actions keep theirs. */
-:root[data-interface-style="glass"] :is(.theme-trigger, .theme-mode-buttons button, .theme-style-buttons button, .account-trigger, .account-google-button, .account-secondary, .install-trigger:not(.install-trigger-ready), .install-dismiss, .secondary-button, .photo-secondary, .photo-refresh, .photo-icon-action, .photo-filter button, .leaderboard-refresh, .welcome-back, .quantity-presets button, .speed-control button, .play-button, .icon-button) {
+:root[data-interface-style="glass"] :is(.theme-trigger, .theme-mode-buttons button, .theme-style-buttons button, .account-trigger, .account-google-button, .account-secondary, .install-trigger:not(.install-trigger-ready), .install-dismiss, .secondary-button, .photo-secondary, .photo-refresh, .photo-icon-action, .photo-filter button, .leaderboard-refresh, .welcome-back, .quantity-presets button, .speed-control button, .icon-button) {
   border-color: var(--glass-line);
   border-radius: 13px;
   background: linear-gradient(155deg, var(--glass-shine), transparent 52%), var(--glass-button);
   box-shadow: inset 0 1px 0 var(--glass-shine), var(--glass-shadow);
 }
-:root[data-interface-style="glass"] :is(.theme-trigger, .theme-mode-buttons button, .theme-style-buttons button, .account-trigger, .account-google-button, .account-secondary, .install-trigger:not(.install-trigger-ready), .install-dismiss, .secondary-button, .photo-secondary, .photo-refresh, .photo-icon-action, .photo-filter button, .leaderboard-refresh, .welcome-back, .quantity-presets button, .speed-control button, .play-button, .icon-button):hover:not(:disabled) {
+:root[data-interface-style="glass"] :is(.theme-trigger, .theme-mode-buttons button, .theme-style-buttons button, .account-trigger, .account-google-button, .account-secondary, .install-trigger:not(.install-trigger-ready), .install-dismiss, .secondary-button, .photo-secondary, .photo-refresh, .photo-icon-action, .photo-filter button, .leaderboard-refresh, .welcome-back, .quantity-presets button, .speed-control button, .icon-button):hover:not(:disabled) {
   background: linear-gradient(155deg, var(--glass-shine), transparent 52%), var(--glass-button-hover);
 }
 :root[data-interface-style="glass"] :is(.theme-mode-buttons button, .theme-style-buttons button, .photo-filter button)[aria-pressed="true"],
-:root[data-interface-style="glass"] :is(.quantity-presets button, .speed-control button).active,
-:root[data-interface-style="glass"] .play-button.paused {
+:root[data-interface-style="glass"] :is(.quantity-presets button, .speed-control button).active {
   background: var(--glass-selected);
   border-color: var(--lime);
   color: var(--lime);
@@ -126,7 +125,7 @@
   border-radius: 15px;
   box-shadow: inset 0 1px 0 var(--glass-shine), inset 0 -1px 0 rgba(0, 0, 0, .06), var(--glass-shadow);
 }
-:root[data-interface-style="glass"] :is(.theme-trigger, .icon-button, .account-dialog-close, .install-close, .photo-dialog-close, .welcome-close, .play-button) {
+:root[data-interface-style="glass"] :is(.theme-trigger, .icon-button, .account-dialog-close, .install-close, .photo-dialog-close, .welcome-close) {
   border-radius: 50%;
 }
 :root[data-interface-style="glass"] :is(.account-trigger, .install-trigger, .account-initial) {

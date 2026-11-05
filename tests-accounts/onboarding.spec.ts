@@ -1,17 +1,19 @@
 import { expect, test, type Locator, type Page, type Route } from '@playwright/test'
 import { createSavedState } from '../src/lib/practiceState'
+import { useFixedMarketPrices } from './market-fixture'
 
 const completionKey = 'mango-fx-onboarding-v1'
 const userId = '77777777-7777-4777-8777-777777777777'
 const password = 'Fixture-password-123!'
 const user = { id: userId, email: 'tutorial@example.test', user_metadata: { display_name: 'Tutorial User' }, aud: 'authenticated', role: 'authenticated', app_metadata: { provider: 'email', providers: ['email'] }, created_at: '2026-11-05T00:00:00Z' }
-const row = () => { const state = createSavedState(); state.paused = true; return { state, revision: 1, updated_at: '2026-11-05T00:00:00Z' } }
+const row = () => ({ state: createSavedState(), revision: 1, updated_at: '2026-11-05T00:00:00Z' })
 const authSession = () => {
   const part = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url')
   return { access_token: `${part({ alg: 'HS256', typ: 'JWT' })}.${part({ sub: userId, aud: 'authenticated', role: 'authenticated', exp: Math.floor(Date.now() / 1000) + 3600 })}.fixture`, token_type: 'bearer', expires_in: 3600, refresh_token: 'tutorial-fixture-refresh', user }
 }
 
 async function backend(page: Page) {
+  await useFixedMarketPrices(page)
   const signupRequests: Record<string, unknown>[] = []
   let savedRow = row()
   await page.context().route('https://testproject.supabase.co/**', async (route: Route) => {
